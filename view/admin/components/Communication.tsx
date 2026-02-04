@@ -141,7 +141,11 @@ const DevicePreview: React.FC<{
     );
 };
 
-export const Communication: React.FC = () => {
+interface CommunicationProps {
+    onSendBroadcast?: (message: BroadcastMessage) => void;
+}
+
+export const Communication: React.FC<CommunicationProps> = ({ onSendBroadcast }) => {
     const [broadcastTab, setBroadcastTab] = useState<'compose' | 'history'>('compose');
     const [messages, setMessages] = useState<BroadcastMessage[]>([
         { id: '1', title: 'Update Sistem v2.0', content: 'Kami telah memperbarui sistem poin dan menambahkan fitur baru. Terima kasih atas dukungan Anda!', target: 'all', status: 'sent', sentAt: '20 Feb 2025', readCount: 850 },
@@ -187,6 +191,12 @@ export const Communication: React.FC = () => {
         };
 
         setMessages([newMsg, ...messages]);
+        
+        // Memicu notifikasi global
+        if (onSendBroadcast) {
+            onSendBroadcast(newMsg);
+        }
+
         setFormData({ title: '', content: '', target: 'all' });
         setIsSubmitting(false);
         setBroadcastTab('history');

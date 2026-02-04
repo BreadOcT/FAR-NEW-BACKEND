@@ -1,70 +1,170 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MapPin, Navigation, History, Trophy, Bell, ChevronDown, BarChart3, Star } from 'lucide-react';
 import { Button } from '../components/Button';
 import { StatsDashboard } from './components/StatsDashboard';
 import { MissionList } from './components/MissionList';
 import { Leaderboard } from './components/Leaderboard';
 import { HistoryList } from './components/HistoryList';
-import { VolunteerTask, RankLevel, DailyQuest, LeaderboardItem } from '../../types';
+import { MissionDetail } from './components/MissionDetail';
+import { VolunteerTask, RankLevel, DailyQuest, LeaderboardItem, ClaimHistoryItem, UserData } from '../../types';
+import { SOCIAL_SYSTEM } from '../../constants';
 
 interface VolunteerIndexProps {
   onOpenNotifications: () => void;
   isSubNavOpen: boolean;
   onToggleSubNav: () => void;
+  // New props for global data connection
+  activeClaims?: ClaimHistoryItem[];
+  onAcceptMission?: (claimId: string, volunteerName: string) => void;
+  currentUser?: UserData | null;
 }
 
-export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotifications, isSubNavOpen, onToggleSubNav }) => {
+export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ 
+    onOpenNotifications, 
+    isSubNavOpen, 
+    onToggleSubNav,
+    activeClaims = [],
+    onAcceptMission,
+    currentUser
+}) => {
   const [activeTab, setActiveTab] = useState<'available' | 'active' | 'rank_stats' | 'history'>('available');
   const [showScanner, setShowScanner] = useState(false);
-  const [scanningForTaskId, setScanningForTaskId] = useState<number | null>(null);
+  const [scanningForTaskId, setScanningForTaskId] = useState<string | number | null>(null);
+  const [selectedTask, setSelectedTask] = useState<VolunteerTask | null>(null);
 
-  const stats = {
-    points: 3850,
-    missionsCompleted: 42,
-    totalDistance: 128.5,
-    hoursContributed: 34,
-    currentRank: "Penjaga Logistik",
-    nextRank: "Ksatria Donasi",
-    progressToNext: 77,
-    weeklyActivity: [2, 4, 1, 5, 3, 8, 4]
-  };
+  const userName = currentUser?.name || 'Budi Santoso';
 
-  const RANK_SYSTEM: RankLevel[] = [
-    { id: 1, name: "Relawan Pemula", minPoints: 0, description: "Langkah awal kebaikan." },
-    { id: 2, name: "Perintis Kebaikan", minPoints: 500, description: "Mulai konsisten membantu." },
-    { id: 3, name: "Pengantar Harapan", minPoints: 1000, description: "Menyebarkan harapan nyata." },
-    { id: 4, name: "Pahlawan Pangan", minPoints: 2000, description: "Dedikasi yang teruji." },
-    { id: 5, name: "Penjaga Logistik", minPoints: 3500, description: "Andalan dalam distribusi." },
-    { id: 6, name: "Ksatria Donasi", minPoints: 5000, description: "Keberanian untuk berbagi." },
-  ];
+  // --- MAP GLOBAL CLAIMS TO TASKS ---
+  const globalTasks: VolunteerTask[] = useMemo(() => {
+      return activeClaims
+        .filter(claim => claim.deliveryMethod !== 'pickup') // Hanya delivery
+        .map((claim): VolunteerTask | null => {
+            const isAssignedToMe = claim.courierName === userName; 
+            const isUnassigned = !claim.courierName;
+            
+            // Tentukan status tugas berdasarkan status klaim
+            let taskStatus: 'available' | 'active' | 'history' = 'available';
+            if (claim.status === 'completed' && isAssignedToMe) taskStatus = 'history';
+            else if (claim.status !== 'completed' && isAssignedToMe) taskStatus = 'active';
+            else if (!isUnassigned) return null; // Assigned to others, hide it
+
+            // Filter out nulls later
+            if (taskStatus === 'available' && !isUnassigned) return null;
+
+            return {
+                id: claim.id,
+                claimId: claim.id,
+                from: claim.providerName,
+                to: 'Penerima Manfaat', // Nama penerima tidak diexpose di list awal untuk privasi
+                distance: 2.5, // Dummy distance calculator
+                distanceStr: '2.5 km',
+                items: `${claim.foodName} (${claim.claimedQuantity || '1 Porsi'})`,
+                status: taskStatus,
+                stage: claim.courierStatus === 'picking_up' ? 'pickup' : 'dropoff',
+                imageUrl: claim.imageUrl,
+                description: claim.description || 'Pengantaran Makanan',
+                ingredients: [],
+                foodCondition: 100,
+                donorLocation: claim.location,
+                receiverLocation: { lat: -6.920000, lng: 107.615000, address: 'Lokasi Penerima' }, // Mock receiver loc
+                donorOpenHours: '09:00 - 21:00',
+                receiverDistanceStr: '2.5 km',
+                quantity: claim.claimedQuantity,
+                donorPhone: '08123456789',
+                receiverPhone: '08198765432',
+                points: 150
+            };
+        })
+        .filter((t): t is VolunteerTask => t !== null); // Remove nulls
+  }, [activeClaims, userName]);
+
+  // Combine with local history dummy data if needed, or rely on global
+  
+  const availableTasks = globalTasks.filter(t => t.status === 'available');
+  const myActiveTasks = globalTasks.filter(t => t.status === 'active');
+  
+  // History List: Base points (100) + completed missions
+  const historyList = useMemo(() => {
+      const baseHistory = [
+          { id: 100, date: 'Bergabung', from: 'System', to: '-', items: 'Bonus Pendaftaran', points: 100, distance: 0 }
+      ];
+      
+      const missionHistory = globalTasks
+          .filter(t => t.status === 'history')
+          .map(t => ({
+              id: t.id as any, 
+              date: 'Baru Saja', 
+              from: t.from, 
+              to: t.to, 
+              items: t.items, 
+              points: t.points || 150, 
+              distance: t.distance
+          }));
+
+      return [...baseHistory, ...missionHistory];
+  }, [globalTasks]);
+
+  // 2. Kalkulasi Stats Secara Real-time (Dynamic)
+  const stats = useMemo(() => {
+      const totalPoints = historyList.reduce((acc, curr) => acc + curr.points, 0);
+      const missionsCompleted = historyList.filter(h => h.from !== 'System').length;
+      const totalDistance = historyList.reduce((acc, curr) => acc + (curr.distance || 0), 0);
+      
+      const totalMinutes = (missionsCompleted * 30) + (totalDistance * 10);
+      const hoursContributed = Math.max(1, Math.floor(totalMinutes / 60));
+
+      const volunteerSystem = SOCIAL_SYSTEM.volunteer;
+      const currentRankObj = volunteerSystem.tiers.slice().reverse().find(t => totalPoints >= t.minPoints) || volunteerSystem.tiers[0];
+      const nextRankObj = volunteerSystem.tiers.find(t => t.minPoints > totalPoints);
+      
+      const progressToNext = nextRankObj 
+        ? Math.min(((totalPoints - currentRankObj.minPoints) / (nextRankObj.minPoints - currentRankObj.minPoints)) * 100, 100)
+        : 100;
+
+      const weeklyActivity = [0, 0, 0, 0, 0, 0, 0];
+      // Simple mock distribution for activity chart based on points
+      const today = new Date().getDay();
+      weeklyActivity[today] = missionsCompleted; 
+
+      return {
+        points: totalPoints,
+        missionsCompleted,
+        totalDistance: parseFloat(totalDistance.toFixed(1)),
+        hoursContributed,
+        currentRank: currentRankObj.name,
+        nextRank: nextRankObj?.name || "Max Level",
+        progressToNext,
+        weeklyActivity
+      };
+  }, [historyList]);
+
+  const RANK_SYSTEM: RankLevel[] = SOCIAL_SYSTEM.volunteer.tiers.map(t => ({
+      id: parseInt(t.id),
+      name: t.name,
+      minPoints: t.minPoints,
+      description: t.benefits[0] || "Relawan Food AI Rescue",
+      icon: t.icon
+  }));
 
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([
     { id: 1, title: "Login Harian", target: 1, current: 1, reward: 10, completed: true },
-    { id: 2, title: "Selesaikan 2 Misi", target: 2, current: 1, reward: 100, completed: false },
+    { id: 2, title: "Selesaikan 1 Misi", target: 1, current: historyList.filter(h => h.from !== 'System').length, reward: 100, completed: historyList.filter(h => h.from !== 'System').length >= 1 },
     { id: 3, title: "Antar Jarak > 5km", target: 1, current: 0, reward: 150, completed: false },
   ]);
 
-  const leaderboardData: LeaderboardItem[] = [
-      { id: 1, name: 'Siti Aminah', points: 4500, rank: 1, avatar: 'SA' },
-      { id: 2, name: 'Budi Santoso', points: 3850, rank: 2, avatar: 'BS' },
-      { id: 3, name: 'Joko Anwar', points: 3200, rank: 3, avatar: 'JA' },
-      { id: 4, name: 'Rina Nose', points: 2900, rank: 4, avatar: 'RN' },
-      { id: 5, name: 'Dedi Corb', points: 2500, rank: 5, avatar: 'DC' },
-  ];
+  const leaderboardData: LeaderboardItem[] = useMemo(() => {
+      const baseData = [
+          { id: 1, name: 'Siti Aminah', points: 4500, rank: 0, avatar: 'SA' },
+          { id: 2, name: userName, points: stats.points, rank: 0, avatar: userName.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() }, 
+          { id: 3, name: 'Joko Anwar', points: 3200, rank: 0, avatar: 'JA' },
+          { id: 4, name: 'Rina Nose', points: 2900, rank: 0, avatar: 'RN' },
+          { id: 5, name: 'Dedi Corb', points: 2500, rank: 0, avatar: 'DC' },
+      ];
+      return baseData.sort((a,b) => b.points - a.points).map((item, idx) => ({...item, rank: idx + 1}));
+  }, [stats.points, userName]);
 
-  const [tasks, setTasks] = useState<VolunteerTask[]>([
-    { id: 1, from: 'Bakery Lestari', to: 'Panti Asuhan Al-Hikmah', distance: 1.2, distanceStr: '1.2 km', items: 'Roti Manis (10 Pcs)', status: 'available', stage: 'pickup' },
-    { id: 2, from: 'Resto Padang Murah', to: 'Ibu Ani (Warga)', distance: 0.8, distanceStr: '0.8 km', items: 'Nasi Rendang (3 Bks)', status: 'active', stage: 'pickup' },
-    { id: 3, from: 'Hotel Grand', to: 'Yayasan Yatim', distance: 5.5, distanceStr: '5.5 km', items: 'Nasi Box (20 Pcs)', status: 'available', stage: 'pickup' }
-  ]);
-
-  const [history, setHistory] = useState([
-    { id: 101, date: '20 Feb 2025', from: 'Dunkin KW', to: 'Pak RT 05', items: 'Donat (1 Lusin)', points: 50 },
-    { id: 102, date: '19 Feb 2025', from: 'Warung Tegal', to: 'Posyandu Mawar', items: 'Nasi Kuning (10 Box)', points: 100 },
-  ]);
-
-  const handleStartScan = (taskId: number) => {
+  const handleStartScan = (taskId: string | number) => {
       setScanningForTaskId(taskId);
       setShowScanner(true);
   };
@@ -72,45 +172,53 @@ export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotificati
   const handleScanSuccess = () => {
     if (scanningForTaskId === null) return;
     if (navigator.vibrate) navigator.vibrate(200);
-    const taskIndex = tasks.findIndex(t => t.id === scanningForTaskId);
-    if (taskIndex === -1) return;
-    const task = tasks[taskIndex];
-    const newTasks = [...tasks];
-    setTimeout(() => {
-        if (task.stage === 'pickup') {
-            newTasks[taskIndex] = { ...task, stage: 'dropoff' };
-            setTasks(newTasks);
-            alert("QR Code Penyedia Terverifikasi!");
-        } else {
-            setHistory([{ id: Date.now(), date: 'Baru Saja', from: task.from, to: task.to, items: task.items, points: 150 }, ...history]);
-            setTasks(tasks.filter(t => t.id !== task.id)); 
-            setActiveTab('history');
-            alert("Misi Selesai. +150 Poin!");
-        }
-        setShowScanner(false);
-        setScanningForTaskId(null);
-    }, 500);
+    
+    // Simulate updating stage logic locally for feedback, 
+    // In real app, this would verify QR code with backend
+    alert("QR Code Terverifikasi!");
+    setShowScanner(false);
+    setScanningForTaskId(null);
   };
 
-  const acceptTask = (id: number) => {
-      setTasks(tasks.map(t => t.id === id ? { ...t, status: 'active' } : t));
-      setActiveTab('active');
+  const acceptTask = (task: VolunteerTask) => {
+      if (onAcceptMission && task.claimId) {
+          onAcceptMission(task.claimId, userName);
+          alert("Misi diambil! Silakan menuju lokasi penjemputan.");
+          setActiveTab('active');
+          setSelectedTask(null);
+      }
   };
+
+  if (selectedTask) {
+      return (
+          <MissionDetail 
+            task={selectedTask}
+            onBack={() => setSelectedTask(null)}
+            onAccept={() => acceptTask(selectedTask)}
+          />
+      );
+  }
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto pb-32">
-       <div onClick={onToggleSubNav} className="sticky top-16 z-30 bg-[#FDFBF7]/95 dark:bg-stone-950/95 backdrop-blur-sm -mx-6 px-6 pt-4 pb-2 mb-6 border-b border-stone-200 dark:border-stone-800 transition-all cursor-pointer">
-          <div className="flex items-center justify-between mb-4">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto pb-32 pt-20"> {/* Added pt-20 to push content below fixed app header */}
+       
+       {/* Sticky Header fixed to fit nicely under main app header */}
+       <div 
+         onClick={onToggleSubNav} 
+         className="sticky top-16 z-30 bg-[#FDFBF7]/95 dark:bg-stone-950/95 backdrop-blur-md -mx-4 md:-mx-8 px-4 md:px-8 py-3 mb-6 border-b border-stone-200 dark:border-stone-800 transition-all cursor-pointer shadow-sm"
+       >
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold text-stone-900 dark:text-white">Misi Relawan</h1>
                 <ChevronDown className={`w-4 h-4 text-orange-500 transition-transform ${isSubNavOpen ? 'rotate-180' : ''}`} />
             </div>
-            <button onClick={(e) => {e.stopPropagation(); onOpenNotifications();}} className="p-2 bg-white dark:bg-stone-900 rounded-full border shadow-sm"><Bell className="w-4 h-4" /></button>
+            <button onClick={(e) => {e.stopPropagation(); onOpenNotifications();}} className="p-2 bg-white dark:bg-stone-900 rounded-full border shadow-sm hover:bg-stone-50"><Bell className="w-4 h-4" /></button>
           </div>
-          <div onClick={(e) => e.stopPropagation()} className={`flex gap-2 overflow-x-auto transition-all duration-500 ${isSubNavOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+          
+          <div onClick={(e) => e.stopPropagation()} className={`flex gap-2 overflow-x-auto transition-all duration-300 pb-2 scrollbar-hide ${isSubNavOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0 overflow-hidden py-0 mb-0'}`}>
                 {[
-                  {id: 'available', label: 'Misi'}, 
-                  {id: 'active', label: 'Aktif'}, 
+                  {id: 'available', label: `Misi (${availableTasks.length})`}, 
+                  {id: 'active', label: `Aktif (${myActiveTasks.length})`}, 
                   {id: 'rank_stats', label: 'Pencapaian'}, 
                   {id: 'history', label: 'Riwayat'}, 
                 ].map(tab => (
@@ -121,7 +229,6 @@ export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotificati
 
        {activeTab === 'rank_stats' && (
           <div className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
-             {/* Rank section at the top */}
              <div className="space-y-4">
                  <div className="flex items-center gap-2 px-1">
                      <div className="p-2 bg-orange-100 rounded-lg">
@@ -132,14 +239,7 @@ export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotificati
                  <Leaderboard data={leaderboardData} />
              </div>
 
-             {/* Stats section below */}
              <div className="space-y-4">
-                 <div className="flex items-center gap-2 px-1">
-                     <div className="p-2 bg-orange-100 rounded-lg">
-                        <BarChart3 className="w-5 h-5 text-orange-600" />
-                     </div>
-                     <h2 className="text-lg font-black uppercase tracking-tighter text-stone-900 dark:text-white">Statistik & Misi Harian</h2>
-                 </div>
                  <StatsDashboard stats={stats} ranks={RANK_SYSTEM} quests={dailyQuests} />
              </div>
           </div>
@@ -147,15 +247,17 @@ export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotificati
 
        {(activeTab === 'available' || activeTab === 'active') && (
            <MissionList 
-              tasks={tasks} 
+              tasks={activeTab === 'available' ? availableTasks : myActiveTasks} 
               activeTab={activeTab === 'available' ? 'available' : 'active'} 
-              onAcceptTask={acceptTask} 
-              onScanQr={handleStartScan} 
+              onAcceptTask={(id) => { /* Handled inside MissionDetail mostly, or pass logic here */ }} 
+              onScanQr={handleStartScan}
+              onSelectTask={setSelectedTask}
            />
        )}
 
-       {activeTab === 'history' && <HistoryList history={history} />}
+       {activeTab === 'history' && <HistoryList history={historyList} />}
 
+       {/* Mobile Floating Nav (Bottom) */}
        <div 
         className={`md:hidden fixed bottom-[64px] left-0 right-0 bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 z-40 px-4 transition-all duration-500 ease-in-out transform overflow-hidden ${isSubNavOpen ? 'max-h-20 translate-y-0 h-14' : 'max-h-0 translate-y-full h-0 border-none'}`}
        >
@@ -190,7 +292,8 @@ export const VolunteerIndex: React.FC<VolunteerIndexProps> = ({ onOpenNotificati
             <div className="absolute inset-0 z-30 cursor-pointer" onClick={handleScanSuccess}></div>
           </div>
           <p className="text-white font-bold text-lg mb-1">Scan QR Code</p>
-          <Button variant="outline" onClick={() => setShowScanner(false)} className="border-white/20 text-white">Tutup</Button>
+          <p className="text-stone-400 text-xs mb-6">Arahkan kamera ke QR Code transaksi</p>
+          <Button variant="outline" onClick={() => setShowScanner(false)} className="border-white/20 text-white hover:bg-white/10">Batal</Button>
           <style>{`@keyframes scan { 0% { top: 0; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }`}</style>
         </div>
       )}

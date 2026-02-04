@@ -1,20 +1,31 @@
 
 import React, { useState } from 'react';
-import { QrCode, MessageSquare, AlertTriangle, X, Star, Send, CheckCircle, Loader2, ChevronLeft, ChevronRight, MapPin, Package, Truck, Navigation, CalendarDays, ShoppingBag } from 'lucide-react';
+import { QrCode, MessageSquare, AlertTriangle, X, Star, Send, CheckCircle, Loader2, ChevronLeft, ChevronRight, MapPin, Package, Truck, Navigation, CalendarDays, ShoppingBag, Camera, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { ClaimHistoryItem } from '../../../types';
 
 interface ReviewModalProps {
     item: ClaimHistoryItem;
     onClose: () => void;
-    onSubmit: (rating: number, review: string) => void;
+    onSubmit: (rating: number, review: string, media: string[]) => void;
 }
 
 const ReviewModal: React.FC<ReviewModalProps> = ({ item, onClose, onSubmit }) => {
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [review, setReview] = useState('');
+    const [media, setMedia] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMedia(prev => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
 
     const handleSubmit = async () => {
         if (rating === 0) {
@@ -22,14 +33,15 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ item, onClose, onSubmit }) =>
             return;
         }
         setIsSubmitting(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Simulasi delay jaringan
+        await new Promise(resolve => setTimeout(resolve, 800));
         setIsSubmitting(false);
-        onSubmit(rating, review);
+        onSubmit(rating, review, media);
     };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl max-w-md w-full relative shadow-2xl">
+            <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl max-w-md w-full relative shadow-2xl overflow-y-auto max-h-[90vh]">
                 <button onClick={onClose} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600 dark:hover:text-white">
                     <X className="w-6 h-6" />
                 </button>
@@ -66,8 +78,30 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ item, onClose, onSubmit }) =>
                     onChange={(e) => setReview(e.target.value)}
                     placeholder="Tulis ulasan Anda..."
                     rows={4}
-                    className="w-full p-3 border rounded-xl dark:bg-stone-800 dark:text-white mb-6 focus:outline-none focus:border-orange-500"
+                    className="w-full p-3 border rounded-xl dark:bg-stone-800 dark:text-white mb-4 focus:outline-none focus:border-orange-500"
                 />
+                
+                <div className="mb-6">
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {media.map((img, i) => (
+                            <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 group">
+                                <img src={img} alt="review" className="w-full h-full object-cover" />
+                                <button 
+                                    onClick={() => setMedia(media.filter((_, idx) => idx !== i))}
+                                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X className="w-4 h-4 text-white" />
+                                </button>
+                            </div>
+                        ))}
+                        <label className="w-16 h-16 rounded-lg border-2 border-dashed border-stone-300 dark:border-stone-700 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors shrink-0">
+                            <Camera className="w-5 h-5 text-stone-400" />
+                            <span className="text-[8px] text-stone-400 font-bold uppercase mt-1">Tambah</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                        </label>
+                    </div>
+                </div>
+
                 <Button onClick={handleSubmit} disabled={rating === 0 || isSubmitting} className="w-full">
                     {isSubmitting ? 'Mengirim...' : 'Kirim Ulasan'}
                 </Button>
@@ -79,20 +113,31 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ item, onClose, onSubmit }) =>
 interface ReportModalProps {
     item: ClaimHistoryItem;
     onClose: () => void;
-    onSubmit: (reason: string, description: string) => void;
+    onSubmit: (reason: string, description: string, evidence: string) => void;
 }
 
 const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onSubmit }) => {
     const [reason, setReason] = useState('Kualitas Makanan Buruk');
     const [description, setDescription] = useState('');
+    const [evidence, setEvidence] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEvidence(reader.result as string);
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!description.trim()) return;
         setIsSubmitting(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         setIsSubmitting(false);
-        onSubmit(reason, description);
+        onSubmit(reason, description, evidence);
     };
 
     return (
@@ -101,7 +146,9 @@ const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onSubmit }) =>
                 <button onClick={onClose} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600">
                     <X className="w-6 h-6" />
                 </button>
-                <h3 className="text-lg font-bold mb-4 dark:text-white">Laporkan Masalah</h3>
+                <h3 className="text-lg font-bold mb-4 dark:text-white flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" /> Laporkan Masalah
+                </h3>
                 <div className="space-y-4 mb-6">
                     <select 
                         value={reason} 
@@ -120,6 +167,27 @@ const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onSubmit }) =>
                         rows={4}
                         className="w-full p-3 border rounded-xl dark:bg-stone-800 dark:text-white focus:outline-none focus:border-red-500"
                     />
+                    
+                    <div>
+                        <label className="text-xs font-bold text-stone-500 mb-2 block uppercase">Bukti Foto (Opsional)</label>
+                        {evidence ? (
+                            <div className="relative w-full h-32 rounded-xl overflow-hidden group">
+                                <img src={evidence} alt="bukti" className="w-full h-full object-cover" />
+                                <button 
+                                    onClick={() => setEvidence('')}
+                                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X className="w-6 h-6 text-white" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="w-full h-20 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-700 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
+                                <ImageIcon className="w-6 h-6 text-stone-400" />
+                                <span className="text-xs text-stone-400 font-bold uppercase mt-1">Upload Bukti</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                            </label>
+                        )}
+                    </div>
                 </div>
                 <Button onClick={handleSubmit} disabled={!description.trim() || isSubmitting} className="w-full bg-red-600 hover:bg-red-700">
                     Kirim Laporan
@@ -129,8 +197,19 @@ const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onSubmit }) =>
     );
 };
 
-export const ClaimHistory: React.FC<{ history: ClaimHistoryItem[], onSelectItem: (item: ClaimHistoryItem) => void }> = ({ history: initialHistory, onSelectItem }) => {
-    const [localHistory, setLocalHistory] = useState<ClaimHistoryItem[]>(initialHistory);
+interface ClaimHistoryProps {
+    history: ClaimHistoryItem[];
+    onSelectItem: (item: ClaimHistoryItem) => void;
+    onSubmitReview?: (claimId: string, rating: number, comment: string, media: string[]) => void;
+    onSubmitReport?: (claimId: string, reason: string, description: string, evidence: string) => void;
+}
+
+export const ClaimHistory: React.FC<ClaimHistoryProps> = ({ 
+    history, 
+    onSelectItem,
+    onSubmitReview,
+    onSubmitReport
+}) => {
     const [showQr, setShowQr] = useState<string | null>(null);
     const [reviewItem, setReviewItem] = useState<ClaimHistoryItem | null>(null);
     const [reportItem, setReportItem] = useState<ClaimHistoryItem | null>(null);
@@ -139,26 +218,24 @@ export const ClaimHistory: React.FC<{ history: ClaimHistoryItem[], onSelectItem:
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const filteredHistory = localHistory.filter(item => filter === 'all' || item.status === filter);
+    const filteredHistory = history.filter(item => filter === 'all' || item.status === filter);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredHistory.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
 
-    const handleReviewSubmit = (rating: number, review: string) => {
-        if (reviewItem) {
-            setLocalHistory(prev => prev.map(item =>
-                item.id === reviewItem.id ? { ...item, rating, review, status: 'completed' as const } : item
-            ));
+    const handleReviewSubmit = (rating: number, review: string, media: string[]) => {
+        if (reviewItem && onSubmitReview) {
+            onSubmitReview(reviewItem.id, rating, review, media);
+            alert("Terima kasih! Ulasan Anda berhasil dikirim.");
             setReviewItem(null);
         }
     };
 
-    const handleReportSubmit = (reason: string, description: string) => {
-        if (reportItem) {
-            setLocalHistory(prev => prev.map(item =>
-                item.id === reportItem.id ? { ...item, isReported: true } : item
-            ));
+    const handleReportSubmit = (reason: string, description: string, evidence: string) => {
+        if (reportItem && onSubmitReport) {
+            onSubmitReport(reportItem.id, reason, description, evidence);
+            alert("Laporan Anda telah dikirim dan akan segera ditinjau.");
             setReportItem(null);
         }
     };
@@ -202,10 +279,16 @@ export const ClaimHistory: React.FC<{ history: ClaimHistoryItem[], onSelectItem:
                             <div className="flex md:flex-col justify-end items-end gap-2 border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-4">
                                 <Button variant="outline" className="h-9 text-xs px-4" onClick={() => onSelectItem(item)}>Detail</Button>
                                 {item.status === 'active' && <Button className="h-9 text-xs px-4" onClick={() => setShowQr(item.uniqueCode || 'ERR')}><QrCode className="w-3 h-3 mr-1" /> Kode</Button>}
-                                {item.status === 'completed' && !item.rating && (
+                                
+                                {/* Tombol Ulasan & Lapor (Independent check) */}
+                                {(item.status === 'completed' || item.status === 'active') && (
                                     <div className="flex gap-2">
-                                        <Button variant="outline" className="h-9 text-xs" onClick={() => setReviewItem(item)}><MessageSquare className="w-3 h-3" /> Ulas</Button>
-                                        {!item.isReported && <Button variant="ghost" className="h-9 text-xs text-red-500" onClick={() => setReportItem(item)}><AlertTriangle className="w-3 h-3" /> Lapor</Button>}
+                                        {item.status === 'completed' && !item.rating && (
+                                            <Button variant="outline" className="h-9 text-xs" onClick={() => setReviewItem(item)}><MessageSquare className="w-3 h-3" /> Ulas</Button>
+                                        )}
+                                        {!item.isReported && (
+                                            <Button variant="ghost" className="h-9 text-xs text-red-500" onClick={() => setReportItem(item)}><AlertTriangle className="w-3 h-3" /> Lapor</Button>
+                                        )}
                                     </div>
                                 )}
                             </div>

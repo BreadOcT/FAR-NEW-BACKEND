@@ -1,51 +1,62 @@
 
-import React, { useState, useEffect } from 'react';
-import { Shield, X, AlertOctagon, CheckCircle2, Clock, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Shield, X, AlertOctagon, CheckCircle2, Clock, Filter, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { Button } from '../../components/Button';
-import { Report } from '../../../types';
+import { Report, ClaimHistoryItem } from '../../../types';
 
-export const Moderation: React.FC = () => {
-  const [reports, setReports] = useState<Report[]>([
-    { id: '101', type: 'quality', reporter: 'Penerima A', target: 'Penyedia (Provider)', description: 'Makanan basi dan tidak layak konsumsi. Sudah melewati tanggal kedaluwarsa.', status: 'new', date: '10:30 AM', priority: 'high', title: 'Makanan Basi' },
-    { id: '102', type: 'behavior', reporter: 'Provider C', target: 'Relawan (Volunteer)', description: 'Relawan tidak mengambil makanan sesuai jadwal yang ditentukan.', status: 'investigating', date: 'Kemarin', priority: 'medium', title: 'Pengambilan Telat' },
-    { id: '103', type: 'quality', reporter: 'User E', target: 'Bug Aplikasi', description: 'Aplikasi crash ketika mencoba upload foto makanan.', status: 'new', date: '2 hari lalu', priority: 'high', title: 'App Crash' },
-    { id: '104', type: 'behavior', reporter: 'User F', target: 'Bug Akun', description: 'Tidak bisa login, password reset tidak bekerja.', status: 'resolved', date: '3 hari lalu', priority: 'medium', title: 'Login Issue' },
-    // Dummy Data for Pagination
-    ...Array.from({length: 18}, (_, i) => ({
-        id: `dummy-${i}`,
-        type: i % 2 === 0 ? 'quality' : 'behavior',
-        reporter: `User ${i}`,
-        target: 'System',
-        description: 'Auto generated report for testing pagination.',
-        status: i % 3 === 0 ? 'new' : 'resolved',
-        date: '1 week ago',
-        priority: i % 4 === 0 ? 'high' : 'low',
-        title: `Issue #${i}`
-    } as Report))
-  ]);
+interface ModerationProps {
+    claims?: ClaimHistoryItem[];
+}
+
+export const Moderation: React.FC<ModerationProps> = ({ claims = [] }) => {
+  // Transform reported claims to Report type
+  const realReports: Report[] = useMemo(() => {
+      return claims
+        .filter(c => c.isReported)
+        .map(c => ({
+            id: `REP-${c.id}`,
+            orderId: c.id,
+            foodName: c.foodName,
+            title: (c as any).reportReason || 'Masalah Umum',
+            description: (c as any).reportDescription || 'Tidak ada deskripsi rinci.',
+            date: c.date,
+            status: 'new', // Default status for new reports in this demo
+            reporter: 'Penerima Manfaat',
+            target: c.providerName,
+            isUrgent: true,
+            type: 'quality',
+            evidenceUrl: (c as any).reportEvidence
+        }));
+  }, [claims]);
+
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'new' | 'investigating' | 'resolved'>('all');
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Local state to manage status changes within the admin session (since we don't have a backend to persist admin actions on reports yet)
+  const [localStatuses, setLocalStatuses] = useState<{[key: string]: string}>({});
+
   const handleAction = (status: 'resolved' | 'dismissed') => {
       if(selectedReport) {
-          setReports(reports.map(r => r.id === selectedReport.id ? { ...r, status } : r));
+          setLocalStatuses(prev => ({...prev, [selectedReport.id]: status}));
           setSelectedReport(null);
       }
   };
 
-  const filteredReports = reports.filter(r => filterStatus === 'all' || r.status === filterStatus);
+  const getStatus = (report: Report) => localStatuses[report.id] || report.status;
 
-  // Pagination Logic
+  const filteredReports = realReports.filter(r => {
+      const currentStatus = getStatus(r);
+      return filterStatus === 'all' || currentStatus === filterStatus;
+  });
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentReports = filteredReports.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
 
-  // Reset pagination on filter change
   useEffect(() => {
       setCurrentPage(1);
   }, [filterStatus]);
@@ -64,28 +75,28 @@ export const Moderation: React.FC = () => {
                 onClick={() => setFilterStatus('all')}
                 className={`p-5 rounded-2xl border-l-4 border-stone-800 shadow-sm cursor-pointer transition-all hover:scale-[1.02] ${filterStatus === 'all' ? 'bg-stone-100 dark:bg-stone-800 ring-2 ring-stone-200 dark:ring-stone-700' : 'bg-white dark:bg-stone-900'}`}
             >
-               <h3 className="text-3xl font-black text-stone-900 dark:text-white">{reports.length}</h3>
+               <h3 className="text-3xl font-black text-stone-900 dark:text-white">{realReports.length}</h3>
                <p className="text-xs text-stone-500 uppercase font-bold mt-1">Total Laporan</p>
            </div>
            <div 
                 onClick={() => setFilterStatus('new')}
                 className={`p-5 rounded-2xl border-l-4 border-red-500 shadow-sm bg-red-50/50 cursor-pointer transition-all hover:scale-[1.02] ${filterStatus === 'new' ? 'ring-2 ring-red-200' : ''}`}
             >
-               <h3 className="text-3xl font-black text-red-600">{reports.filter(r => r.status === 'new').length}</h3>
+               <h3 className="text-3xl font-black text-red-600">{realReports.filter(r => getStatus(r) === 'new').length}</h3>
                <p className="text-xs text-red-500 uppercase font-bold mt-1">Baru</p>
            </div>
            <div 
                 onClick={() => setFilterStatus('investigating')}
                 className={`p-5 rounded-2xl border-l-4 border-orange-500 shadow-sm bg-orange-50/50 cursor-pointer transition-all hover:scale-[1.02] ${filterStatus === 'investigating' ? 'ring-2 ring-orange-200' : ''}`}
             >
-               <h3 className="text-3xl font-black text-orange-600">{reports.filter(r => r.status === 'investigating').length}</h3>
+               <h3 className="text-3xl font-black text-orange-600">{realReports.filter(r => getStatus(r) === 'investigating').length}</h3>
                <p className="text-xs text-orange-500 uppercase font-bold mt-1">Diproses</p>
            </div>
            <div 
                 onClick={() => setFilterStatus('resolved')}
                 className={`p-5 rounded-2xl border-l-4 border-green-500 shadow-sm bg-green-50/50 cursor-pointer transition-all hover:scale-[1.02] ${filterStatus === 'resolved' ? 'ring-2 ring-green-200' : ''}`}
             >
-               <h3 className="text-3xl font-black text-green-600">{reports.filter(r => r.status === 'resolved').length}</h3>
+               <h3 className="text-3xl font-black text-green-600">{realReports.filter(r => getStatus(r) === 'resolved').length}</h3>
                <p className="text-xs text-green-500 uppercase font-bold mt-1">Selesai</p>
            </div>
        </div>
@@ -119,7 +130,7 @@ export const Moderation: React.FC = () => {
                <thead className="bg-stone-50 dark:bg-stone-950 text-stone-500 text-[10px] uppercase font-bold tracking-wider">
                    <tr>
                        <th className="p-5">Laporan</th>
-                       <th className="p-5">Kategori</th>
+                       <th className="p-5">Target</th>
                        <th className="p-5">Prioritas</th>
                        <th className="p-5">Status</th>
                        <th className="p-5 text-right">Aksi</th>
@@ -133,11 +144,16 @@ export const Moderation: React.FC = () => {
                            </td>
                        </tr>
                    ) : (
-                       currentReports.map(report => (
+                       currentReports.map(report => {
+                       const currentStatus = getStatus(report);
+                       return (
                        <tr key={report.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                            <td className="p-5">
                                <p className="font-bold text-sm text-stone-900 dark:text-white mb-1">{report.title}</p>
-                               <p className="text-xs text-stone-500 line-clamp-1 max-w-xs">{report.description}</p>
+                               <div className="flex items-center gap-1 text-xs text-stone-500 mb-1">
+                                   <Package className="w-3 h-3" /> {report.foodName}
+                               </div>
+                               <p className="text-xs text-stone-400 line-clamp-1 max-w-xs">{report.description}</p>
                                <div className="flex items-center gap-2 mt-2 text-[10px] text-stone-400">
                                    <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> {report.reporter}</span>
                                    <span>•</span>
@@ -146,9 +162,7 @@ export const Moderation: React.FC = () => {
                            </td>
                            <td className="p-5">
                                <div className="flex items-center gap-2 text-sm text-stone-600">
-                                   {report.target.includes('Provider') && <span className="p-1.5 bg-blue-100 rounded text-blue-600"><Shield className="w-4 h-4" /></span>}
-                                   {report.target.includes('Volunteer') && <span className="p-1.5 bg-green-100 rounded text-green-600"><Shield className="w-4 h-4" /></span>}
-                                   {report.target.includes('Bug') && <span className="p-1.5 bg-yellow-100 rounded text-yellow-600"><AlertOctagon className="w-4 h-4" /></span>}
+                                   <span className="p-1.5 bg-blue-100 rounded text-blue-600"><Shield className="w-4 h-4" /></span>
                                    <span className="font-medium">{report.target}</span>
                                </div>
                            </td>
@@ -158,15 +172,16 @@ export const Moderation: React.FC = () => {
                                </span>
                            </td>
                            <td className="p-5">
-                               <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${report.status === 'new' ? 'bg-red-50 text-red-600 border border-red-100' : report.status === 'resolved' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
-                                   {report.status.replace('_', ' ')}
+                               <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${currentStatus === 'new' ? 'bg-red-50 text-red-600 border border-red-100' : currentStatus === 'resolved' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
+                                   {currentStatus === 'dismissed' ? 'Ditolak' : currentStatus.replace('_', ' ')}
                                </span>
                            </td>
                            <td className="p-5 text-right">
-                               <Button variant="outline" className="h-9 w-auto text-xs px-4" onClick={() => setSelectedReport(report)}>Detail</Button>
+                               <Button variant="outline" className="h-9 w-auto text-xs px-4" onClick={() => setSelectedReport({...report, status: currentStatus as any})}>Detail</Button>
                            </td>
                        </tr>
-                   )))}
+                   )})
+                   )}
                </tbody>
            </table>
 
@@ -200,8 +215,8 @@ export const Moderation: React.FC = () => {
        </div>
        
        {selectedReport && (
-            <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-stone-900 w-full max-w-lg rounded-2xl shadow-2xl p-6 relative">
+            <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                <div className="bg-white dark:bg-stone-900 w-full max-w-lg rounded-2xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
                     <button onClick={() => setSelectedReport(null)} className="absolute top-4 right-4 text-stone-400 hover:text-stone-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
                     
                     <div className="mb-6">
@@ -215,6 +230,12 @@ export const Moderation: React.FC = () => {
                     <div className="bg-stone-50 dark:bg-stone-800 p-4 rounded-xl border border-stone-100 dark:border-stone-700 mb-6">
                         <p className="text-sm font-bold text-stone-900 dark:text-white mb-2">Deskripsi Masalah</p>
                         <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">{selectedReport.description}</p>
+                        {selectedReport.evidenceUrl && (
+                            <div className="mt-4 pt-4 border-t border-stone-200 dark:border-stone-700">
+                                <p className="text-xs font-bold text-stone-500 uppercase mb-2">Bukti Foto</p>
+                                <img src={selectedReport.evidenceUrl} alt="Bukti" className="w-full h-48 object-cover rounded-lg" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

@@ -5,21 +5,24 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { FAQItem } from '../../../types';
 
-export const ContentCMS: React.FC = () => {
-  const [faqs, setFaqs] = useState<FAQItem[]>([
-    { id: '1', question: 'Bagaimana cara menjadi donatur?', answer: 'Daftar akun dan pilih role Provider...', category: 'Umum' },
-    { id: '2', question: 'Apakah ada biaya?', answer: 'Tidak ada biaya sama sekali.', category: 'Umum' }
-  ]);
+interface ContentCMSProps {
+    faqs?: FAQItem[];
+    setFaqs?: React.Dispatch<React.SetStateAction<FAQItem[]>>;
+}
+
+export const ContentCMS: React.FC<ContentCMSProps> = ({ faqs = [], setFaqs }) => {
   const [faqForm, setFaqForm] = useState({ id: '', question: '', answer: '', category: 'Umum' });
   const [isEditingFaq, setIsEditingFaq] = useState(false);
 
   const handleSaveFaq = () => {
+      if (!setFaqs) return;
       if (!faqForm.question || !faqForm.answer) return alert('Mohon isi pertanyaan dan jawaban');
+      
       if (isEditingFaq) {
-          setFaqs(faqs.map(f => f.id === faqForm.id ? faqForm : f));
-          alert('FAQ diperbarui!');
+          setFaqs(prev => prev.map(f => f.id === faqForm.id ? faqForm : f));
+          alert('FAQ diperbarui! Perubahan akan muncul di halaman Profil.');
       } else {
-          setFaqs([...faqs, { id: Date.now().toString(), ...faqForm }]);
+          setFaqs(prev => [...prev, { id: Date.now().toString(), ...faqForm }]);
           alert('FAQ tersimpan!');
       }
       setFaqForm({ id: '', question: '', answer: '', category: 'Umum' });
@@ -27,8 +30,9 @@ export const ContentCMS: React.FC = () => {
   };
 
   const handleDeleteFaq = (id: string) => {
+      if (!setFaqs) return;
       if (confirm('Hapus FAQ ini?')) {
-          setFaqs(faqs.filter(f => f.id !== id));
+          setFaqs(prev => prev.filter(f => f.id !== id));
       }
   };
 
@@ -52,6 +56,19 @@ export const ContentCMS: React.FC = () => {
                           <div className="space-y-1">
                               <label className="text-xs font-bold text-stone-500">Jawaban</label>
                               <textarea className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200" rows={3} value={faqForm.answer} onChange={e => setFaqForm({...faqForm, answer: e.target.value})}></textarea>
+                          </div>
+                          <div className="space-y-1">
+                              <label className="text-xs font-bold text-stone-500">Kategori</label>
+                              <select 
+                                value={faqForm.category}
+                                onChange={e => setFaqForm({...faqForm, category: e.target.value})}
+                                className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
+                              >
+                                  <option value="Umum">Umum</option>
+                                  <option value="SOP Donatur">SOP Donatur</option>
+                                  <option value="SOP Penerima">SOP Penerima</option>
+                                  <option value="Relawan & Logistik">Relawan & Logistik</option>
+                              </select>
                           </div>
                           <div className="flex gap-2 justify-end">
                               <Button variant="ghost" className="w-auto h-8" onClick={() => { setIsEditingFaq(false); setFaqForm({id:'', question:'', answer:'', category:'Umum'}) }}>Batal</Button>

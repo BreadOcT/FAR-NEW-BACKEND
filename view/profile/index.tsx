@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, ClaimHistoryItem, SavedItem, Address, FoodItem } from '../../types';
+import { UserRole, ClaimHistoryItem, SavedItem, Address, FoodItem, FAQItem, UserData } from '../../types';
 import { User, MapPin, Shield, HelpCircle, Moon, Sun, LogOut, ChevronRight, ArrowLeft, Heart, Store } from 'lucide-react';
 import { Button } from '../components/Button';
 import { ProfileHeader } from './components/ProfileHeader';
@@ -15,6 +15,7 @@ import { ClaimHistoryDetail } from './components/ClaimHistoryDetail';
 
 interface ProfileIndexProps {
   role: UserRole;
+  currentUser?: UserData | null; // Receive current user data
   onLogout: () => void;
   isDarkMode: boolean;
   toggleTheme: () => void;
@@ -23,29 +24,49 @@ interface ProfileIndexProps {
   setSavedItems: React.Dispatch<React.SetStateAction<SavedItem[]>>;
   claimHistory: ClaimHistoryItem[];
   setClaimHistory: React.Dispatch<React.SetStateAction<ClaimHistoryItem[]>>;
-  availableFoodForDetail: FoodItem[]; 
+  availableFoodForDetail: FoodItem[];
+  onClaim?: (item: FoodItem, quantity: string) => void;
+  stats?: any; 
+  onSubmitReview?: (claimId: string, rating: number, comment: string, media: string[]) => void;
+  onSubmitReport?: (claimId: string, reason: string, description: string, evidence: string) => void;
+  globalFAQs?: FAQItem[];
 }
 
 type ProfileView = 'main' | 'edit' | 'address' | 'security' | 'faq' | 'saved' | 'history';
 
 export const ProfileIndex: React.FC<ProfileIndexProps> = ({ 
-  role, onLogout, isDarkMode, toggleTheme, initialView = 'main',
-  savedItems, setSavedItems, claimHistory, setClaimHistory, availableFoodForDetail
+  role, currentUser, onLogout, isDarkMode, toggleTheme, initialView = 'main',
+  savedItems, setSavedItems, claimHistory, setClaimHistory, availableFoodForDetail, onClaim, stats,
+  onSubmitReview, onSubmitReport, globalFAQs
 }) => {
   const [currentView, setCurrentView] = useState<ProfileView>(initialView);
   const [selectedSavedItem, setSelectedSavedItem] = useState<FoodItem | null>(null);
   const [selectedClaimDetail, setSelectedClaimDetail] = useState<ClaimHistoryItem | null>(null);
   
+  // Initialize with real currentUser data
   const [userData, setUserData] = useState({
-    name: role === 'provider' ? "Restoran Berkah" : role === 'volunteer' ? "Budi Santoso" : "Ibu Siti Aminah",
-    email: "user@foodairescue.com",
-    phone: "812-3456-7890",
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${role}`
+    name: currentUser?.name || (role === 'provider' ? "Restoran Berkah" : role === 'volunteer' ? "Budi Santoso" : "Ibu Siti Aminah"),
+    email: currentUser?.email || "user@foodairescue.com",
+    phone: currentUser?.phone || "812-3456-7890",
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.name || role}`
   });
+
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([
-    { id: '1', label: 'Rumah', fullAddress: 'Jl. Asia Afrika No. 1, Bandung', receiverName: 'Siti Aminah', phone: '081234567890', isPrimary: true }
+    { id: '1', label: 'Alamat Utama', fullAddress: currentUser?.address || 'Jl. Asia Afrika No. 1, Bandung', receiverName: currentUser?.name || 'Siti Aminah', phone: currentUser?.phone || '081234567890', isPrimary: true }
   ]);
+
+  // Update state if currentUser changes prop
+  useEffect(() => {
+      if (currentUser) {
+          setUserData({
+              name: currentUser.name,
+              email: currentUser.email,
+              phone: currentUser.phone || "812-3456-7890",
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.name}`
+          });
+      }
+  }, [currentUser]);
 
   useEffect(() => { setCurrentView(initialView) }, [initialView]);
 
@@ -62,12 +83,26 @@ export const ProfileIndex: React.FC<ProfileIndexProps> = ({
   );
 
   const handleViewSavedDetail = (savedItem: SavedItem) => {
+        if(savedItem.status === 'claimed') {
+            alert("Item ini sudah Anda klaim. Silakan cek di menu Riwayat Klaim.");
+            return;
+        }
+
         const found = availableFoodForDetail.find(f => f.id === savedItem.id);
         if (found) setSelectedSavedItem(found);
         else {
-          alert("Data makanan tidak lagi tersedia.");
-          setSavedItems(prev => prev.filter(s => s.id !== savedItem.id));
+          alert("Data detail makanan tidak lagi tersedia atau sudah diambil orang lain.");
         }
+  };
+
+  const handleCompleteClaim = () => {
+      if (selectedClaimDetail) {
+          setClaimHistory(prev => prev.map(item => 
+              item.id === selectedClaimDetail.id ? { ...item, status: 'completed' } : item
+          ));
+          setSelectedClaimDetail(null);
+          alert("Pesanan berhasil diselesaikan!");
+      }
   };
 
   const MenuButton = ({ icon: Icon, label, onClick, last }: any) => (
@@ -80,7 +115,6 @@ export const ProfileIndex: React.FC<ProfileIndexProps> = ({
     </button>
   );
 
-  // View: Full Detail Page for Saved Items
   if (selectedSavedItem) {
       return (
         <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">
@@ -89,21 +123,25 @@ export const ProfileIndex: React.FC<ProfileIndexProps> = ({
                 onBack={() => setSelectedSavedItem(null)}
                 isSaved={savedItems.some(s => s.id === selectedSavedItem.id)}
                 onToggleSave={() => setSavedItems(prev => prev.filter(s => s.id !== selectedSavedItem.id))}
-                onClaim={() => {
-                  alert("Fitur klaim dari bookmark memerlukan redirect ke Home.");
-                  setSelectedSavedItem(null);
+                onClaim={(qty) => {
+                  if (onClaim) {
+                      onClaim(selectedSavedItem, qty);
+                      setSelectedSavedItem(null);
+                  } else {
+                      alert("Fitur klaim tidak tersedia saat ini.");
+                  }
                 }}
             />
         </div>
       );
   }
 
-  // View: Full Detail Page for Claim History (Halaman Baru sesuai instruksi)
   if (selectedClaimDetail) {
       return (
           <ClaimHistoryDetail 
             item={selectedClaimDetail} 
             onBack={() => setSelectedClaimDetail(null)} 
+            onComplete={handleCompleteClaim}
           />
       );
   }
@@ -111,9 +149,19 @@ export const ProfileIndex: React.FC<ProfileIndexProps> = ({
   if (currentView === 'edit') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Edit Profil")}<EditProfile userData={userData} onSave={(data) => {setUserData(data); setCurrentView('main');}} /></div>;
   if (currentView === 'address') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Alamat Tersimpan")}<AddressList addresses={addresses} onAddAddress={(addr) => setAddresses([...addresses, addr])} /></div>;
   if (currentView === 'security') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Keamanan")}<SecuritySettings /></div>;
-  if (currentView === 'faq') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Bantuan")}<FaqSection /></div>;
+  if (currentView === 'faq') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Bantuan")}<FaqSection faqs={globalFAQs} /></div>;
   if (currentView === 'saved') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Disimpan")}<SavedItems items={savedItems} onDelete={(ids) => setSavedItems(prev => prev.filter(i => !ids.has(i.id)))} onDetail={handleViewSavedDetail} /></div>;
-  if (currentView === 'history') return <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">{renderHeader("Riwayat Klaim")}<ClaimHistory history={claimHistory} onSelectItem={setSelectedClaimDetail} /></div>;
+  if (currentView === 'history') return (
+    <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950">
+        {renderHeader("Riwayat Klaim")}
+        <ClaimHistory 
+            history={claimHistory} 
+            onSelectItem={setSelectedClaimDetail} 
+            onSubmitReview={onSubmitReview}
+            onSubmitReport={onSubmitReport}
+        />
+    </div>
+  );
 
   return (
     <div className="pb-24 bg-[#FDFBF7] dark:bg-stone-950 min-h-screen transition-colors duration-300">
@@ -132,6 +180,7 @@ export const ProfileIndex: React.FC<ProfileIndexProps> = ({
                     reader.readAsDataURL(e.target.files[0]);
                 }
             }}
+            stats={stats}
         />
 
         <div className="mt-8 px-4 space-y-3 max-w-lg mx-auto">

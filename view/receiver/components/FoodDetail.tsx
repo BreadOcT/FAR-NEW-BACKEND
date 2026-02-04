@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, ShieldCheck, Clock, CheckCircle, MapPin, Navigation, Minus, Plus, CalendarDays, Heart } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Clock, CheckCircle, MapPin, Navigation, Minus, Plus, CalendarDays, Heart, MessageCircle } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { FoodItem } from '../../../types';
 import { StoreIcon } from './StoreIcon';
@@ -16,6 +16,7 @@ interface FoodDetailProps {
 export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, isSaved, onToggleSave }) => {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimQuantity, setClaimQuantity] = useState(1);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   const maxStock = parseInt(item.quantity.replace(/\D/g, '')) || 1;
 
@@ -35,8 +36,50 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
     if (claimQuantity > 1) setClaimQuantity(prev => prev - 1);
   };
 
-  const openExternalMap = () => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${item.location.lat},${item.location.lng}`, '_blank');
+  // Implementasi handleRoute yang sama dengan modul Relawan
+  const handleRoute = (targetLat?: number, targetLng?: number) => {
+    if (!targetLat || !targetLng) return alert("Lokasi tidak valid");
+    
+    setIsLoadingRoute(true);
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setIsLoadingRoute(false);
+                const { latitude, longitude } = position.coords;
+                // Menggunakan mode 'driving' dan endpoint navigasi
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${targetLat},${targetLng}&travelmode=driving`;
+                window.open(url, '_blank');
+            },
+            (error) => {
+                setIsLoadingRoute(false);
+                // Fallback jika GPS gagal atau ditolak
+                const url = `https://www.google.com/maps/search/?api=1&query=${targetLat},${targetLng}`;
+                window.open(url, '_blank');
+            }
+        );
+    } else {
+        setIsLoadingRoute(false);
+        const url = `https://www.google.com/maps/search/?api=1&query=${targetLat},${targetLng}`;
+        window.open(url, '_blank');
+    }
+  };
+
+  const handleChatToProvider = () => {
+    const phoneNumber = "6285215376975";
+    // Format tanggal upload
+    const uploadDate = new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    // Nama penanya otomatis (Simulasi akun logged-in)
+    const userName = "Siti Aminah"; 
+
+    // Format pesan tanpa emoji
+    const message = `Halo Donatur *${item.providerName}*,\n\n` +
+        `Saya *${userName}* tertarik dengan donasi makanan ini:\n\n` +
+        `Nama: ${item.name}\n` +
+        `ID: ${item.id}\n` +
+        `Diupload: ${uploadDate}\n\n` +
+        `Saya ingin bertanya: `;
+
+    window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
@@ -63,15 +106,16 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
         <div className="p-6 space-y-8 max-w-3xl mx-auto -mt-6 bg-[#FDFBF7] dark:bg-stone-950 rounded-t-3xl relative pb-48 md:pb-40">
             <div className="flex justify-between items-start">
                 <div className="flex-1 pr-4">
-                    <h1 className="text-3xl font-extrabold text-stone-900 dark:text-white leading-tight mb-2">{item.name}</h1>
-                    <div className="flex flex-wrap items-center gap-3 text-stone-600 dark:text-stone-400">
-                        <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-900 px-2 py-1 rounded-md">
+                    <h1 className="text-3xl font-extrabold text-stone-900 dark:text-white leading-tight mb-3">{item.name}</h1>
+                    <div className="flex flex-wrap items-center gap-2 text-stone-600 dark:text-stone-400">
+                        <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-900 px-3 py-1.5 rounded-xl">
                             <StoreIcon className="w-4 h-4 text-orange-500" />
                             <span className="font-bold text-sm">{item.providerName}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md text-red-600 dark:text-red-400">
-                            <Clock className="w-4 h-4" />
-                            <span className="font-bold text-sm">Exp: {item.expiryTime}</span>
+                        
+                        <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 rounded-xl text-red-600 dark:text-red-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="font-bold text-xs">Exp: {item.expiryTime}</span>
                         </div>
                     </div>
                 </div>
@@ -146,7 +190,11 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
                     <MapPin className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" /> {item.location.address}
                 </p>
                 
-                <div className="rounded-3xl overflow-hidden border border-stone-200 dark:border-stone-800 relative h-56 group cursor-pointer shadow-sm" onClick={openExternalMap}>
+                {/* Map Container dengan Button Navigasi */}
+                <div 
+                    className="rounded-3xl overflow-hidden border border-stone-200 dark:border-stone-800 relative h-56 group cursor-pointer shadow-sm" 
+                    onClick={() => handleRoute(item.location.lat, item.location.lng)}
+                >
                     <iframe 
                         width="100%" 
                         height="100%" 
@@ -158,8 +206,15 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
                         className="filter grayscale group-hover:grayscale-0 transition-all duration-500"
                     ></iframe>
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
-                    <button className="absolute bottom-4 right-4 bg-white text-stone-900 px-5 py-2.5 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                        <Navigation className="w-4 h-4" /> Buka Google Maps
+                    <button 
+                        className="absolute bottom-4 right-4 bg-white text-stone-900 px-5 py-2.5 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRoute(item.location.lat, item.location.lng);
+                        }}
+                    >
+                        <Navigation className="w-4 h-4" /> 
+                        {isLoadingRoute ? 'Memuat Rute...' : 'Navigasi GPS'}
                     </button>
                 </div>
             </div>
@@ -167,8 +222,9 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
 
         {/* Action Bar */}
         <div className="fixed bottom-0 left-0 right-0 p-5 pb-8 md:pb-6 bg-white/95 dark:bg-stone-900/95 backdrop-blur-lg border-t border-stone-200 dark:border-stone-800 z-[70] shadow-[0_-10px_40px_rgba(0,0,0,0.12)] md:max-w-3xl md:mx-auto md:bottom-6 md:rounded-3xl md:border md:shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
-                <div className="flex items-center justify-between md:justify-start gap-6 border-b md:border-b-0 border-stone-100 dark:border-stone-800 pb-3 md:pb-0">
+            <div className="flex flex-col gap-4">
+                {/* Quantity & Method Row */}
+                <div className="flex items-center justify-between border-b md:border-b-0 border-stone-100 dark:border-stone-800 pb-3 md:pb-0">
                     <div className="flex flex-col">
                         <p className="text-[10px] text-stone-400 dark:text-stone-500 font-black uppercase tracking-[0.15em] mb-1">Jumlah Ambil</p>
                         <div className="flex items-center gap-4 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl w-fit">
@@ -190,22 +246,37 @@ export const FoodDetail: React.FC<FoodDetailProps> = ({ item, onBack, onClaim, i
                         </div>
                     </div>
 
-                    <div className="text-right md:text-left">
+                    <div className="text-right">
                         <p className="text-[10px] text-stone-400 dark:text-stone-500 font-black uppercase tracking-[0.15em] mb-1">Metode</p>
                         <p className="text-sm font-extrabold text-stone-900 dark:text-white capitalize leading-none">
-                          {item.deliveryMethod === 'pickup' ? 'Ambil Sendiri' : 'Antar Relawan'}
+                          {item.deliveryMethod === 'pickup' 
+                            ? 'Ambil Sendiri' 
+                            : item.deliveryMethod === 'delivery' 
+                                ? 'Antar Relawan' 
+                                : 'Pickup & Antar'}
                         </p>
                         <p className="text-[10px] text-stone-400 mt-1">Maks: {item.quantity}</p>
                     </div>
                 </div>
 
-                <Button 
-                    onClick={handleClaimClick} 
-                    isLoading={isClaiming} 
-                    className="h-14 flex-1 text-base rounded-2xl shadow-xl shadow-orange-500/30 font-black tracking-widest uppercase bg-gradient-to-r from-orange-600 to-amber-500 border-0 active:scale-[0.97]"
-                >
-                    KLAIM SEKARANG
-                </Button>
+                {/* Buttons Row */}
+                <div className="flex gap-3 w-full">
+                    <button
+                        onClick={handleChatToProvider}
+                        className="h-14 px-4 sm:px-6 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 font-black uppercase tracking-widest hover:border-green-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/10 transition-all flex items-center justify-center gap-2"
+                    >
+                        <MessageCircle className="w-5 h-5" />
+                        <span className="hidden sm:inline">Chat Donatur</span>
+                    </button>
+
+                    <Button 
+                        onClick={handleClaimClick} 
+                        isLoading={isClaiming} 
+                        className="h-14 flex-1 text-base rounded-2xl shadow-xl shadow-orange-500/30 font-black tracking-widest uppercase bg-gradient-to-r from-orange-600 to-amber-500 border-0 active:scale-[0.97]"
+                    >
+                        KLAIM SEKARANG
+                    </Button>
+                </div>
             </div>
         </div>
     </div>

@@ -3,7 +3,7 @@ import React from 'react';
 
 export type UserRole = 'provider' | 'receiver' | 'volunteer' | 'super_admin' | 'admin_manager' | null;
 
-export type DeliveryMethod = 'pickup' | 'delivery';
+export type DeliveryMethod = 'pickup' | 'delivery' | 'both';
 
 export interface PointRule {
   action: string;
@@ -39,8 +39,15 @@ export interface FoodItem {
   id: string;
   name: string;
   description: string;
-  quantity: string;
+  quantity: string; // Misal: "10 Pcs"
+  initialQuantity: number; // Jumlah awal angka
+  currentQuantity: number; // Jumlah sekarang angka
+  minQuantity?: number; // Minimal ambil
+  maxQuantity?: number; // Maksimal ambil
   expiryTime: string;
+  createdAt: string; // Waktu pembuatan
+  distributionStart?: string;
+  distributionEnd?: string;
   imageUrl: string;
   providerName: string;
   location: {
@@ -69,10 +76,13 @@ export interface ClaimHistoryItem {
   status: 'active' | 'completed' | 'cancelled'; 
   rating?: number; 
   review?: string;
+  reviewMedia?: string[]; // Added: Foto ulasan
   isReported?: boolean;
+  reportReason?: string; // Added
+  reportDescription?: string; // Added
+  reportEvidence?: string; // Added: Foto bukti laporan
   imageUrl: string;
   uniqueCode?: string;
-  // Detail tambahan untuk modal detail
   claimedQuantity?: string;
   deliveryMethod?: DeliveryMethod;
   location?: {
@@ -85,6 +95,43 @@ export interface ClaimHistoryItem {
     end: string;
   };
   description?: string;
+  courierName?: string;
+  courierStatus?: 'assigning' | 'picking_up' | 'delivering' | 'completed';
+}
+
+export interface ProviderOrder {
+  id: string;
+  foodName: string;
+  description: string;
+  quantity: string;
+  imageUrl: string;
+  status: 'claimed' | 'pickup' | 'delivery' | 'completed' | 'cancelled';
+  deliveryMethod: DeliveryMethod;
+  receiver: {
+    name: string;
+    avatar: string; 
+    phone: string;
+  };
+  courier?: {
+    name: string;
+    avatar: string;
+    phone: string;
+  };
+  timestamps: {
+    claimedAt: string;
+    pickedUpAt?: string; 
+    completedAt?: string; 
+  };
+  rating?: {
+    stars: number;
+    comment: string;
+    mediaUrls?: string[];
+  };
+  report?: {
+    issue: string;
+    description: string;
+    isUrgent: boolean;
+  };
 }
 
 export interface SavedItem {
@@ -105,7 +152,7 @@ export interface Address {
 }
 
 export interface FAQItem {
-  id?: string; // Made optional for form handling
+  id?: string; 
   question: string;
   answer: string;
   category?: string;
@@ -119,11 +166,13 @@ export interface Notification {
   date: string;
   isRead: boolean;
   priority?: 'high' | 'medium' | 'low';
+  targetRole?: string; 
 }
 
 export interface Report {
   id: string;
-  orderId?: string; // Added to identify the specific order
+  orderId?: string; 
+  foodName?: string; 
   title: string;
   description: string;
   date: string;
@@ -139,12 +188,13 @@ export interface Report {
 
 export interface Review {
   id: string;
-  orderId?: string; // Added to link to specific order
+  orderId?: string; 
+  foodName?: string; 
   user: string;
   rating: number;
   comment: string;
   date: string;
-  mediaUrls?: string[]; // Added for review photos
+  mediaUrls?: string[]; 
 }
 
 export interface Quote {
@@ -167,8 +217,6 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   variant?: 'primary' | 'outline' | 'ghost' | 'danger';
 }
 
-// --- Admin & Advanced Types ---
-
 export interface UserData {
   id: string;
   name: string;
@@ -177,6 +225,8 @@ export interface UserData {
   status: 'active' | 'suspended' | 'pending';
   points: number;
   joinDate: string;
+  phone?: string; 
+  address?: string; 
 }
 
 export interface AdminUser {
@@ -231,18 +281,16 @@ export interface BroadcastMessage {
 export interface Badge {
   id: string;
   name: string;
-  icon: string; // Emoji
-  image?: string; // Optional Background Image
+  icon: string; 
+  image?: string; 
   description: string;
-  role: UserRole | 'all'; // Target role
-  minPoints: number; // Requirement
+  role: UserRole | 'all'; 
+  minPoints: number; 
   awardedTo?: number;
 }
 
-// --- Volunteer Specific Types ---
-
 export interface VolunteerTask {
-  id: number;
+  id: string | number; 
   from: string;
   to: string;
   distance: number;
@@ -250,6 +298,19 @@ export interface VolunteerTask {
   items: string;
   status: 'available' | 'active' | 'history';
   stage: 'pickup' | 'dropoff';
+  imageUrl?: string;
+  description?: string;
+  ingredients?: string[];
+  foodCondition?: number; 
+  donorLocation?: { lat: number; lng: number; address: string };
+  receiverLocation?: { lat: number; lng: number; address: string };
+  donorOpenHours?: string;
+  receiverDistanceStr?: string; 
+  quantity?: string;
+  donorPhone?: string;
+  receiverPhone?: string;
+  points?: number;
+  claimId?: string; 
 }
 
 export interface RankLevel {

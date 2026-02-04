@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Filter, Navigation, ScanLine, Search } from 'lucide-react';
+import { Filter, Navigation, ScanLine, Search, ChevronRight, Eye } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../common/EmptyState';
 import { VolunteerTask } from '../../../types';
@@ -9,14 +9,15 @@ interface MissionListProps {
   tasks: VolunteerTask[];
   activeTab: 'available' | 'active';
   onAcceptTask: (id: number) => void;
-  onScanQr: (taskId: number) => void;
+  onScanQr: (taskId: string | number) => void;
+  onSelectTask: (task: VolunteerTask) => void;
 }
 
-export const MissionList: React.FC<MissionListProps> = ({ tasks, activeTab, onAcceptTask, onScanQr }) => {
+export const MissionList: React.FC<MissionListProps> = ({ tasks, activeTab, onAcceptTask, onScanQr, onSelectTask }) => {
   const [filterDistance, setFilterDistance] = useState<'all' | 'near'>('all');
 
   const filteredTasks = tasks.filter(t => {
-      if (t.status !== activeTab) return false;
+      // Logic status sudah difilter di parent, tapi double check aman
       if (filterDistance === 'near' && t.distance > 2) return false;
       return true;
   });
@@ -48,7 +49,11 @@ export const MissionList: React.FC<MissionListProps> = ({ tasks, activeTab, onAc
         )}
 
         {filteredTasks.map(task => (
-            <div key={task.id} className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-orange-100 dark:border-stone-800 relative overflow-hidden shadow-sm">
+            <div 
+                key={task.id} 
+                onClick={() => onSelectTask(task)}
+                className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-orange-100 dark:border-stone-800 relative overflow-hidden shadow-sm cursor-pointer hover:border-orange-300 dark:hover:border-stone-600 transition-all active:scale-[0.98]"
+            >
               <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-orange-500 to-amber-500" />
               
               <div className="flex justify-between items-start mb-4">
@@ -87,11 +92,18 @@ export const MissionList: React.FC<MissionListProps> = ({ tasks, activeTab, onAc
 
               <div className="mt-6 flex gap-3">
                 {activeTab === 'available' ? (
-                  <Button onClick={() => onAcceptTask(task.id)}>Ambil Misi</Button>
+                  <Button onClick={(e) => { e.stopPropagation(); onSelectTask(task); }} className="bg-stone-800 hover:bg-stone-900 dark:bg-stone-700 dark:hover:bg-stone-600 text-white shadow-none border-0">
+                      <Eye className="w-4 h-4 mr-2" /> Lihat Detail Misi
+                  </Button>
                 ) : (
                   <>
-                    <Button variant="outline"><Navigation className="w-4 h-4 mr-2" /> Rute</Button>
-                    <Button onClick={() => onScanQr(task.id)} className={task.stage === 'dropoff' ? 'bg-green-600 hover:bg-green-500' : ''}>
+                    <Button variant="outline" onClick={(e) => { e.stopPropagation(); onSelectTask(task); }}>
+                        <Navigation className="w-4 h-4 mr-2" /> Rute
+                    </Button>
+                    <Button 
+                        onClick={(e) => { e.stopPropagation(); onScanQr(task.id); }} 
+                        className={task.stage === 'dropoff' ? 'bg-green-600 hover:bg-green-500' : ''}
+                    >
                         <ScanLine className="w-4 h-4 mr-2" /> 
                         {task.stage === 'pickup' ? 'Scan QR Penyedia' : 'Scan QR Penerima'}
                     </Button>

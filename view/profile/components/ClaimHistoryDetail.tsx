@@ -1,15 +1,16 @@
 
 import React from 'react';
-import { ArrowLeft, X, MapPin, Package, Truck, Navigation, ShoppingBag, CalendarDays, QrCode } from 'lucide-react';
+import { ArrowLeft, X, MapPin, Package, Truck, Navigation, ShoppingBag, CalendarDays, QrCode, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { ClaimHistoryItem } from '../../../types';
 
 interface ClaimHistoryDetailProps {
     item: ClaimHistoryItem;
     onBack: () => void;
+    onComplete?: () => void;
 }
 
-export const ClaimHistoryDetail: React.FC<ClaimHistoryDetailProps> = ({ item, onBack }) => {
+export const ClaimHistoryDetail: React.FC<ClaimHistoryDetailProps> = ({ item, onBack, onComplete }) => {
     const openInMaps = () => {
         if (item.location) {
             window.open(`https://www.google.com/maps/search/?api=1&query=${item.location.lat},${item.location.lng}`, '_blank');
@@ -138,20 +139,29 @@ export const ClaimHistoryDetail: React.FC<ClaimHistoryDetailProps> = ({ item, on
             {/* Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 p-6 pb-10 bg-white/90 dark:bg-stone-900/90 backdrop-blur-xl border-t border-stone-200 dark:border-stone-800 z-[110]">
                 <div className="max-w-3xl mx-auto flex gap-4">
-                    <Button 
-                        onClick={onBack}
-                        variant="outline"
-                        className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest border-2"
-                    >
-                        TUTUP DETAIL
-                    </Button>
+                    {/* Tombol Tutup Detail dihapus sesuai instruksi */}
+                    
                     {item.status === 'active' && (
-                        <Button 
-                            className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest shadow-orange-500/20"
-                            onClick={() => alert("Membuka petunjuk pengambilan...")}
-                        >
-                            PETUNJUK JALAN
-                        </Button>
+                        <>
+                            {onComplete && (
+                                <Button 
+                                    onClick={onComplete}
+                                    className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-green-500/20"
+                                >
+                                    <CheckCircle2 className="w-5 h-5 mr-1" /> Pesanan Selesai
+                                </Button>
+                            )}
+                            
+                            {/* Tombol Petunjuk Jalan HANYA muncul jika pickup */}
+                            {item.deliveryMethod === 'pickup' && (
+                                <Button 
+                                    className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest shadow-orange-500/20"
+                                    onClick={() => alert("Membuka petunjuk pengambilan...")}
+                                >
+                                    PETUNJUK JALAN
+                                </Button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

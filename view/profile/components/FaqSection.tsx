@@ -1,118 +1,39 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Shield, User, Store, ChevronUp, ChevronDown, MessageSquare, BookOpen, Truck } from 'lucide-react';
 import { Button } from '../../components/Button';
+import { FAQItem } from '../../../types';
 
-export const FaqSection: React.FC = () => {
-    const [openCategory, setOpenCategory] = useState<number | null>(0);
+interface FaqSectionProps {
+    faqs?: FAQItem[];
+}
+
+export const FaqSection: React.FC<FaqSectionProps> = ({ faqs = [] }) => {
+    const [openCategory, setOpenCategory] = useState<string | null>('Umum');
     const [openFaq, setOpenFaq] = useState<string | null>(null);
 
-    const categories = [
-        { 
-            category: "Umum", 
-            icon: BookOpen,
-            items: [
-                { 
-                    question: "Apa itu Food AI Rescue?", 
-                    answer: "Food AI Rescue adalah platform berbasis teknologi yang menghubungkan donatur makanan (restoran, hotel, toko roti) dengan penerima manfaat atau organisasi sosial untuk mencegah pemborosan makanan (food waste) dan membantu ketahanan pangan." 
-                },
-                { 
-                    question: "Apakah aplikasi ini berbayar?", 
-                    answer: "Tidak. Aplikasi ini 100% gratis untuk diunduh dan digunakan baik oleh Donatur, Penerima, maupun Relawan. Misi kami adalah sosial dan lingkungan." 
-                },
-                { 
-                    question: "Daerah mana saja yang terjangkau?", 
-                    answer: "Saat ini kami beroperasi aktif di kota-kota besar seperti Jakarta, Bandung, Surabaya, dan Medan. Kami terus berekspansi ke daerah lain sesuai dengan pertumbuhan komunitas relawan." 
-                },
-                { 
-                    question: "Bagaimana cara menjaga keamanan akun?", 
-                    answer: "Gunakan password yang kuat, jangan bagikan kode OTP kepada siapapun (termasuk pihak yang mengaku dari Food AI Rescue), dan aktifkan fitur Autentikasi 2 Faktor (2FA) di menu Pengaturan Keamanan profil Anda." 
-                },
-                { 
-                    question: "Apakah makanan di sini dijamin halal?", 
-                    answer: "Kami menggunakan AI untuk memprediksi kandungan bahan dan skor kehalalan, serta meminta Donatur untuk melabeli status halal. Namun, kami menyarankan penerima untuk selalu memverifikasi label halal pada kemasan atau bertanya langsung pada Donatur saat pengambilan." 
-                }
-            ] 
-        },
-        { 
-            category: "SOP Donatur", 
-            icon: Store,
-            items: [
-                { 
-                    question: "Makanan apa yang boleh didonasikan?", 
-                    answer: "Makanan yang boleh didonasikan adalah makanan surplus yang masih layak konsumsi, higienis, belum basi, dan tidak mengandung bahan berbahaya. Contoh: Roti sisa produksi hari ini, nasi box kelebihan acara, buah-buahan yang bentuknya kurang sempurna tapi tidak busuk." 
-                },
-                { 
-                    question: "Bagaimana standar pengemasan?", 
-                    answer: "Makanan harus dikemas dengan rapi, tertutup rapat, dan higienis. Gunakan wadah food-grade. Untuk makanan basah/berkuah, pastikan anti-tumpah. Jangan lupa tempelkan label berisi nama makanan dan waktu pembuatan jika memungkinkan." 
-                },
-                { 
-                    question: "Berapa lama batas waktu kedaluwarsa?", 
-                    answer: "Untuk makanan siap santap (cooked food), sebaiknya didistribusikan dalam waktu 4 jam setelah dimasak jika di suhu ruang. AI kami akan membantu menghitung prediksi masa simpan berdasarkan jenis makanan dan cara penyimpanan Anda." 
-                },
-                { 
-                    question: "Apakah bisa mendonasikan makanan sisa prasmanan?", 
-                    answer: "Bisa, ASALKAN makanan tersebut belum tersentuh langsung oleh konsumen (misalnya sisa di wadah pemanas/chafing dish yang belum diambil). Makanan sisa dari piring orang lain (leftover) DILARANG KERAS untuk didonasikan." 
-                },
-                { 
-                    question: "Bagaimana jika makanan tidak ada yang mengambil?", 
-                    answer: "Jika sampai batas waktu yang ditentukan makanan belum diklaim, Anda wajib membuangnya atau mengelolanya menjadi kompos (jika memungkinkan) demi keamanan pangan. Status donasi di aplikasi akan otomatis berubah menjadi 'Expired'." 
-                }
-            ] 
-        },
-        { 
-            category: "SOP Penerima", 
-            icon: User,
-            items: [
-                { 
-                    question: "Siapa yang berhak menerima makanan?", 
-                    answer: "Siapapun yang membutuhkan bisa menjadi penerima. Namun, kami memprioritaskan masyarakat prasejahtera, panti asuhan, yayasan sosial, dan mahasiswa/pekerja yang sedang kesulitan finansial." 
-                },
-                { 
-                    question: "Apakah ada batasan jumlah klaim?", 
-                    answer: "Ya, untuk pemerataan distribusi, setiap akun penerima dibatasi maksimal 3 klaim aktif dalam satu waktu. Anda baru bisa mengklaim lagi setelah menyelesaikan klaim sebelumnya." 
-                },
-                { 
-                    question: "Bagaimana cara mengambil makanan?", 
-                    answer: "Setelah klik 'Klaim', Anda akan mendapatkan Kode QR atau Kode Unik. Datanglah ke lokasi Donatur sesuai peta, tunjukkan kode tersebut kepada staf/pemilik untuk diverifikasi, lalu terima makanannya." 
-                },
-                { 
-                    question: "Apa sanksi jika tidak mengambil makanan yang diklaim?", 
-                    answer: "Jika Anda melakukan klaim tapi tidak datang (No Show) sebanyak 3 kali tanpa pembatalan, akun Anda akan disuspend sementara selama 7 hari. Mohon hargai niat baik donatur." 
-                },
-                { 
-                    question: "Bagaimana cara memberi rating/review?", 
-                    answer: "Setelah transaksi selesai (makanan diterima), tombol 'Ulas' akan muncul di menu Riwayat Klaim. Berikan bintang dan komentar yang jujur untuk membantu menjaga kualitas komunitas." 
-                }
-            ] 
-        },
-        {
-             category: "Relawan & Logistik",
-             icon: Truck,
-             items: [
-                 {
-                     question: "Apa tugas seorang Relawan (Volunteer)?",
-                     answer: "Relawan bertugas mengantarkan makanan dari Donatur ke Penerima (biasanya untuk penerima yang tidak bisa mengambil sendiri, seperti panti asuhan atau lansia) atau membantu proses Quality Control di lokasi donatur besar."
-                 },
-                 {
-                     question: "Apakah relawan mendapat bayaran?",
-                     answer: "Posisi relawan bersifat sosial (tidak digaji). Namun, Anda akan mendapatkan Poin untuk setiap misi yang diselesaikan. Poin ini bisa menaikkan Level Rank Anda dan ditukarkan dengan reward menarik dari partner kami (voucher, merchandise, dll)."
-                 },
-                 {
-                     question: "Kendaraan apa yang dibutuhkan?",
-                     answer: "Anda bisa menggunakan sepeda motor, mobil, sepeda, atau bahkan berjalan kaki jika jaraknya dekat. Pastikan wadah makanan aman selama perjalanan."
-                 },
-                 {
-                     question: "Bagaimana jika terjadi kecelakaan/tumpah saat pengantaran?",
-                     answer: "Segera laporkan melalui tombol 'Darurat' atau 'Lapor Masalah' di halaman misi aktif. Hubungi CS kami agar kami bisa menginformasikan kepada Donatur dan Penerima untuk solusi pengganti."
-                 },
-                 {
-                     question: "Bagaimana cara bergabung menjadi relawan?",
-                     answer: "Daftar akun baru dan pilih peran 'Relawan'. Anda perlu mengunggah foto KTP dan SIM (jika menggunakan kendaraan bermotor) untuk verifikasi keamanan."
-                 }
-             ]
-        }
-    ];
+    // Group FAQs by Category
+    const groupedFaqs = useMemo(() => {
+        const groups: { [key: string]: FAQItem[] } = {};
+        const listToUse = faqs.length > 0 ? faqs : [
+            // Fallback default
+            { question: "Apa itu Food AI Rescue?", answer: "Platform penyelamatan makanan.", category: "Umum" }
+        ];
+
+        listToUse.forEach(item => {
+            const cat = item.category || 'Umum';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(item);
+        });
+        return groups;
+    }, [faqs]);
+
+    const getIcon = (cat: string) => {
+        if (cat.includes('Donatur')) return Store;
+        if (cat.includes('Penerima')) return User;
+        if (cat.includes('Relawan')) return Truck;
+        return BookOpen;
+    };
 
     const handleContactCS = () => {
         window.open(`https://wa.me/6285215376975`, '_blank');
@@ -132,26 +53,26 @@ export const FaqSection: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    {categories.map((cat, idx) => {
-                        const Icon = cat.icon;
+                    {Object.keys(groupedFaqs).map((category, idx) => {
+                        const Icon = getIcon(category);
                         return (
                             <div key={idx} className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 overflow-hidden shadow-sm transition-all hover:shadow-md">
                                 <button 
-                                    onClick={() => setOpenCategory(openCategory === idx ? null : idx)} 
-                                    className={`w-full flex justify-between items-center p-5 text-left transition-colors ${openCategory === idx ? 'bg-orange-50 dark:bg-orange-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/50'}`}
+                                    onClick={() => setOpenCategory(openCategory === category ? null : category)} 
+                                    className={`w-full flex justify-between items-center p-5 text-left transition-colors ${openCategory === category ? 'bg-orange-50 dark:bg-orange-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/50'}`}
                                 >
                                     <span className="flex gap-3 items-center font-bold text-stone-800 dark:text-stone-200 text-lg">
-                                        <div className={`p-2 rounded-lg ${openCategory === idx ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-stone-100 dark:bg-stone-800 text-stone-500'}`}>
+                                        <div className={`p-2 rounded-lg ${openCategory === category ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-stone-100 dark:bg-stone-800 text-stone-500'}`}>
                                             <Icon className="w-5 h-5" />
                                         </div>
-                                        {cat.category}
+                                        {category}
                                     </span>
-                                    {openCategory === idx ? <ChevronUp className="w-5 h-5 text-orange-500" /> : <ChevronDown className="w-5 h-5 text-stone-400" />}
+                                    {openCategory === category ? <ChevronUp className="w-5 h-5 text-orange-500" /> : <ChevronDown className="w-5 h-5 text-stone-400" />}
                                 </button>
                                 
-                                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${openCategory === idx ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${openCategory === category ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                     <div className="p-2 space-y-2">
-                                        {cat.items.map((item, i) => (
+                                        {groupedFaqs[category].map((item, i) => (
                                             <div key={i} className="rounded-xl overflow-hidden border border-transparent hover:border-stone-200 dark:hover:border-stone-700 transition-colors">
                                                 <button 
                                                     onClick={() => setOpenFaq(openFaq === `${idx}-${i}` ? null : `${idx}-${i}`)} 

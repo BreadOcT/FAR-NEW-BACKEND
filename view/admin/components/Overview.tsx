@@ -4,14 +4,29 @@ import { Leaf, Users, Globe, AlertTriangle, Package, Truck, UserPlus, FileText, 
 
 interface OverviewProps {
     onNavigate: (tab: string) => void;
+    stats?: {
+        usersCount: number;
+        claimsCount: number;
+        inventoryCount: number;
+        reportsCount: number;
+    };
 }
 
-export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
-  const stats = [
-    { label: "TOTAL PENYELAMATAN", value: "12,450", unit: "kg", subValue: "+120kg", trend: "up", icon: Leaf, color: "text-green-600", bg: "bg-green-100" },
-    { label: "KOMUNITAS AKTIF", value: "845", unit: "", subValue: "+45", trend: "up", icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
-    { label: "JEJAK KARBON (C02)", value: "-24.5", unit: "Ton", subValue: "-2.1%", trend: "down", icon: Globe, color: "text-teal-600", bg: "bg-teal-100" },
-    { label: "LAPORAN MASUK", value: "12", unit: "", subValue: "High Priority", trend: "neutral", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-100" }
+export const Overview: React.FC<OverviewProps> = ({ onNavigate, stats }) => {
+  // Use passed stats or defaults
+  const totalUsers = stats?.usersCount || 0;
+  const totalClaims = stats?.claimsCount || 0;
+  const totalInventory = stats?.inventoryCount || 0;
+  const totalReports = stats?.reportsCount || 0;
+
+  // Calculate some derived metrics based on input
+  const co2Saved = (totalClaims * 2.5).toFixed(1); // 2.5kg per claim roughly
+
+  const dashboardStats = [
+    { label: "TOTAL PENYELAMATAN", value: `${totalClaims * 5} kg`, unit: "", subValue: `${totalClaims} Klaim`, trend: "up", icon: Leaf, color: "text-green-600", bg: "bg-green-100" },
+    { label: "KOMUNITAS AKTIF", value: `${totalUsers}`, unit: "User", subValue: "+Active", trend: "up", icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "JEJAK KARBON (C02)", value: `-${co2Saved}`, unit: "Kg", subValue: "-Est", trend: "down", icon: Globe, color: "text-teal-600", bg: "bg-teal-100" },
+    { label: "LAPORAN MASUK", value: `${totalReports}`, unit: "", subValue: "Need Action", trend: "neutral", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-100" }
   ];
 
   const recentActivities = [
@@ -22,8 +37,8 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   ];
 
   const quickActions = [
-      { label: "Kelola User", icon: Users, color: "bg-blue-50 text-blue-600", desc: "0 pengguna aktif", target: 'community' },
-      { label: "Laporan", icon: AlertTriangle, color: "bg-red-50 text-red-600", desc: "0 perlu tindakan", target: 'moderation' },
+      { label: "Kelola User", icon: Users, color: "bg-blue-50 text-blue-600", desc: `${totalUsers} pengguna terdaftar`, target: 'community' },
+      { label: "Laporan", icon: AlertTriangle, color: "bg-red-50 text-red-600", desc: `${totalReports} perlu tindakan`, target: 'moderation' },
       { label: "Broadcast", icon: Megaphone, color: "bg-purple-50 text-purple-600", desc: "Kirim notifikasi", target: 'communication' },
       { label: "CMS", icon: FileText, color: "bg-orange-50 text-orange-600", desc: "Edit konten", target: 'content' },
   ];
@@ -34,7 +49,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
        <div className="bg-gradient-to-r from-[#E65100] to-[#FB8C00] rounded-3xl p-8 md:p-10 text-white shadow-xl shadow-orange-500/20 relative overflow-hidden">
           <div className="relative z-10 max-w-2xl">
              <h2 className="text-3xl font-black mb-3 tracking-tight">Halo, Admin!</h2>
-             <p className="text-orange-50 font-medium text-lg leading-relaxed mb-8">Sistem berjalan optimal. Hari ini ada <strong className="bg-white/20 px-2 py-0.5 rounded text-white">0kg</strong> makanan yang perlu diselamatkan.</p>
+             <p className="text-orange-50 font-medium text-lg leading-relaxed mb-8">Sistem berjalan optimal. Saat ini ada <strong className="bg-white/20 px-2 py-0.5 rounded text-white">{totalInventory}</strong> item donasi aktif tersedia.</p>
              <div className="flex gap-4">
                 <button 
                     onClick={() => onNavigate('moderation')}
@@ -46,7 +61,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
                     onClick={() => onNavigate('distribution')}
                     className="bg-[#bf360c] hover:bg-[#a02c08] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2"
                 >
-                    Distribusi Hari Ini <Truck className="w-4 h-4" />
+                    Pantau Distribusi <Truck className="w-4 h-4" />
                 </button>
              </div>
           </div>
@@ -57,7 +72,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
        {/* Stats Cards */}
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, idx) => (
+          {dashboardStats.map((stat, idx) => (
              <div key={idx} className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm hover:shadow-md transition-all">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${stat.color} ${stat.bg}`}>
                     <stat.icon className="w-6 h-6" />
@@ -68,14 +83,14 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
                     <span className="text-sm font-bold text-stone-500">{stat.unit}</span>
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded ${stat.trend === 'up' || stat.trend === 'neutral' ? 'bg-green-50 text-green-600' : 'bg-green-50 text-green-600'}`}>
-                    {stat.trend === 'neutral' ? 'Loading...' : stat.subValue}
+                    {stat.subValue}
                 </span>
              </div>
           ))}
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           {/* Recent Activity */}
+           {/* Recent Activity (Still Mock for now, but linked conceptually) */}
            <div className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-lg text-stone-900 dark:text-white">Aktivitas Terbaru</h3>

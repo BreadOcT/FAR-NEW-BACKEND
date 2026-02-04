@@ -6,9 +6,10 @@ import { Notification, UserRole } from '../../types';
 interface NotificationsPageProps {
   role: UserRole;
   onBack: () => void;
+  extraNotifications?: Notification[]; // Prop untuk notifikasi tambahan dari state global (broadcast)
 }
 
-export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBack }) => {
+export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBack, extraNotifications = [] }) => {
   
   const getNotificationsByRole = (currentRole: UserRole): Notification[] => {
       const common: Notification[] = [
@@ -22,9 +23,14 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBa
           }
       ];
 
+      // Filter notifikasi broadcast agar hanya muncul sesuai target role atau 'all'
+      const broadcasts = extraNotifications.filter(n => n.targetRole === 'all' || n.targetRole === currentRole);
+
+      let roleBased: Notification[] = [];
+
       switch(currentRole) {
           case 'provider': // Donatur
-              return [
+              roleBased = [
                   {
                       id: 'p-1',
                       type: 'success',
@@ -48,11 +54,11 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBa
                       message: 'Anda mendapatkan ulasan positif dari penerima manfaat. Pertahankan kualitas donasi Anda!',
                       date: '4 Jam lalu',
                       isRead: true
-                  },
-                  ...common
+                  }
               ];
+              break;
           case 'receiver': // Penerima
-              return [
+              roleBased = [
                   {
                       id: 'r-1',
                       type: 'success',
@@ -76,11 +82,11 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBa
                       message: 'Jangan lupa untuk mengambil "Roti Manis" di Bakery Lestari. Batas waktu tinggal 1 jam lagi.',
                       date: '2 Jam lalu',
                       isRead: true
-                  },
-                  ...common
+                  }
               ];
+              break;
           case 'volunteer': // Relawan
-              return [
+              roleBased = [
                   {
                       id: 'v-1',
                       type: 'info',
@@ -104,12 +110,12 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBa
                       message: 'Anda memiliki misi aktif yang belum diselesaikan. Segera selesaikan untuk menghindari pinalti.',
                       date: '5 Jam lalu',
                       isRead: true
-                  },
-                  ...common
+                  }
               ];
+              break;
           case 'admin_manager':
           case 'super_admin':
-              return [
+              roleBased = [
                   {
                       id: 'a-1',
                       type: 'report',
@@ -134,19 +140,22 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role, onBa
                       message: 'Deteksi traffic tinggi pada server region Bandung.',
                       date: '1 Hari lalu',
                       isRead: true
-                  },
-                  ...common
+                  }
               ];
+              break;
           default:
-              return common;
+              roleBased = [];
       }
+
+      // Menggabungkan Broadcast -> Role Specific -> Common
+      return [...broadcasts, ...roleBased, ...common];
   };
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
       setNotifications(getNotificationsByRole(role));
-  }, [role]);
+  }, [role, extraNotifications]); // Re-run effect when role or extraNotifications change
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));

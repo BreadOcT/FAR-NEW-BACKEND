@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, UserCircle, Truck, Utensils, ArrowRight, User, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, UserCircle, Truck, Utensils, ArrowRight, User, ArrowLeft, CheckCircle, Phone } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { UserRole } from '../../types';
 
 interface RegisterViewProps {
   onNavigate: (view: 'login' | 'register' | 'forgot-password') => void;
-  onRegister: (role: UserRole) => void;
+  onRegister: (formData: any) => void;
 }
 
 export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate, onRegister }) => {
@@ -15,17 +15,65 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate, onRegist
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    // Validasi Email (Wajib ada @)
+    if (!formData.email.includes('@') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = "Email tidak valid (harus menyertakan '@')";
+    }
+
+    // Validasi Nomor HP
+    if (!formData.phone || formData.phone.length < 9) {
+        newErrors.phone = "Nomor WhatsApp wajib diisi (min. 9 digit)";
+    }
+
+    // Validasi Password (Standard Web: Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Symbol)
+    // Regex explanation:
+    // (?=.*[a-z]) -> minimal 1 huruf kecil
+    // (?=.*[A-Z]) -> minimal 1 huruf besar
+    // (?=.*\d)    -> minimal 1 angka
+    // (?=.*[\W_]) -> minimal 1 simbol (non-word char atau underscore)
+    // .{8,}       -> minimal panjang 8 karakter (karakter apa saja)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    
+    if (!passwordRegex.test(formData.password)) {
+        newErrors.password = "Password minimal 8 karakter, minimal 1 huruf besar, 1 huruf kecil, 1 angka, dan 1 simbol.";
+    }
+
+    // Validasi Konfirmasi Password
+    if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Konfirmasi password tidak cocok!";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert("Password tidak cocok!");
-      return;
+    
+    if (!validateForm()) {
+        return;
     }
+
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsLoading(false);
-    onRegister(selectedRole);
+    
+    // Send full data back to App
+    onRegister({
+        ...formData,
+        role: selectedRole
+    });
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Hanya mengizinkan angka
+      const val = e.target.value.replace(/\D/g, '');
+      setFormData({...formData, phone: val});
   };
 
   const LEFT_IMAGE_URL = "https://images.unsplash.com/photo-1488459716781-31db52582fe9?q=80&w=2070&auto=format&fit=crop";
@@ -98,19 +146,36 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate, onRegist
                     icon={<User className="w-5 h-5" />} 
                     value={formData.name} 
                     onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                    className="bg-[#121212] border-stone-800 text-stone-200 focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700" 
-                />
-                <Input 
-                    label="Email Address" 
-                    type="email" 
-                    placeholder="nama@email.com" 
-                    icon={<Mail className="w-5 h-5" />} 
-                    value={formData.email} 
-                    onChange={(e) => setFormData({...formData, email: e.target.value})} 
-                    className="bg-[#121212] border-stone-800 text-stone-200 focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700" 
+                    className="bg-[#121212] border-stone-800 text-white focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700 placeholder-stone-600" 
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <Input 
+                        label="Email Address" 
+                        type="text" 
+                        placeholder="nama@email.com" 
+                        icon={<Mail className="w-5 h-5" />} 
+                        value={formData.email} 
+                        onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                        className={`bg-[#121212] border-stone-800 text-white focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700 placeholder-stone-600 ${errors.email ? 'border-red-500 focus:border-red-500' : ''}`} 
+                    />
+                    {errors.email && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.email}</p>}
+                </div>
+
+                <div>
+                    <Input 
+                        label="Nomor WhatsApp" 
+                        type="tel" 
+                        placeholder="812-3456-7890" 
+                        leftAddon={<span className="text-stone-400 font-bold px-1">+62</span>}
+                        value={formData.phone} 
+                        onChange={handlePhoneChange}
+                        className={`bg-[#121212] border-stone-800 text-white focus:border-orange-500 rounded-r-xl py-3 transition-all hover:border-stone-700 placeholder-stone-600 ${errors.phone ? 'border-red-500 focus:border-red-500' : ''}`}
+                    />
+                    {errors.phone && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.phone}</p>}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                         <Input 
                             label="Password" 
@@ -119,7 +184,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate, onRegist
                             icon={<Lock className="w-5 h-5" />} 
                             value={formData.password} 
                             onChange={(e) => setFormData({...formData, password: e.target.value})} 
-                            className="bg-[#121212] border-stone-800 text-stone-200 focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700" 
+                            className={`bg-[#121212] border-stone-800 text-white focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700 placeholder-stone-600 ${errors.password ? 'border-red-500 focus:border-red-500' : ''}`} 
                         />
                     </div>
                     <div className="relative">
@@ -130,14 +195,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate, onRegist
                             icon={<Lock className="w-5 h-5" />} 
                             value={formData.confirmPassword} 
                             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})} 
-                            className="bg-[#121212] border-stone-800 text-stone-200 focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700" 
+                            className={`bg-[#121212] border-stone-800 text-white focus:border-orange-500 rounded-xl py-3 pl-12 transition-all hover:border-stone-700 placeholder-stone-600 ${errors.confirmPassword ? 'border-red-500 focus:border-red-500' : ''}`} 
                         />
                     </div>
                 </div>
                 
+                {errors.password && <p className="text-red-500 text-[10px] mt-0 ml-1 leading-tight">{errors.password}</p>}
+                {errors.confirmPassword && !errors.password && <p className="text-red-500 text-[10px] mt-0 ml-1">{errors.confirmPassword}</p>}
+                
                 <div className="flex justify-end">
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-xs text-stone-500 hover:text-orange-400 flex items-center gap-1 transition-colors">
-                        {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />} {showPassword ? 'Sembunyikan' : 'Lihat'}
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-xs text-stone-500 hover:text-orange-400 flex items-center gap-1 transition-colors select-none">
+                        {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />} {showPassword ? 'Sembunyikan' : 'Lihat Password'}
                     </button>
                 </div>
 

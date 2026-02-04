@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Store, Truck, User, Edit, Mail, Phone, Package, Star, Zap, CheckCircle, Clock, Award, Image, X, ChevronRight, Lock } from 'lucide-react';
+import { Store, Truck, User, Edit, Mail, Phone, Package, Star, Zap, CheckCircle, Clock, Award, Image, X, ChevronRight, Lock, Heart } from 'lucide-react';
 import { UserRole } from '../../../types';
 import { ACHIEVEMENT_BADGES, SOCIAL_SYSTEM } from '../../../constants';
 
@@ -15,9 +15,14 @@ interface ProfileHeaderProps {
     bannerImage: string | null;
     onEditBanner: () => void;
     onEditAvatar: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    stats?: {
+        label1: string; value1: number | string;
+        label2: string; value2: number | string;
+        label3: string; value3: number;
+    };
 }
 
-export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, bannerImage: initialBanner, onEditBanner, onEditAvatar }) => {
+export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, bannerImage: initialBanner, onEditBanner, onEditAvatar, stats }) => {
     // State management for Cover System
     const [coverMode, setCoverMode] = useState<'image' | 'badge'>('image');
     const [customBanner, setCustomBanner] = useState<string | null>(initialBanner);
@@ -27,17 +32,31 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, ba
     const [showEditMenu, setShowEditMenu] = useState(false);
     const [showBadgeSelector, setShowBadgeSelector] = useState(false);
 
-    // Mock scores based on role (Simulation for Points)
-    const donaturScores = { totalDonations: 1250, rating: 4.8, responseRate: '98%', points: 2450 };
-    const volunteerScores = { missions: 42, hours: 34, points: 3850 };
-    const receiverScores = { claims: 15, points: 450 };
+    // Gunakan stats dari props atau fallback ke 0
+    const currentStats = stats || {
+        label1: 'Data', value1: 0,
+        label2: 'Data', value2: 0,
+        label3: 'Poin', value3: 0
+    };
 
     // Determine current user points based on role for badge locking logic
-    const currentUserPoints = role === 'provider' ? donaturScores.points : role === 'volunteer' ? volunteerScores.points : receiverScores.points;
+    const currentUserPoints = typeof currentStats.value3 === 'number' ? currentStats.value3 : 0;
 
     // Get Badges (Achievements) distinct from Rank
     const availableBadges = ACHIEVEMENT_BADGES.filter(b => b.role === 'all' || b.role === role);
     const activeBadge = availableBadges.find(b => b.id === selectedBadgeId);
+
+    // --- LOGIC BADGE LEVEL ICON ---
+    // Mengambil ikon rank berdasarkan poin user dari SOCIAL_SYSTEM
+    const getRankIcon = () => {
+        if (!role || !SOCIAL_SYSTEM[role]) return <User className="w-4 h-4 text-white" />;
+        
+        const tiers = SOCIAL_SYSTEM[role].tiers;
+        // Find highest tier reached
+        const currentTier = tiers.slice().reverse().find(t => currentUserPoints >= t.minPoints) || tiers[0];
+        
+        return <div className="text-xl">{currentTier.icon}</div>;
+    };
 
     const handleOptionClick = (type: 'upload' | 'badge') => {
         setShowEditMenu(false);
@@ -59,9 +78,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, ba
 
     return (
         <div className="mb-8">
-            <div className="relative mx-4 mt-4 h-48">
-                {/* Main Cover Container */}
-                <div className={`h-full relative rounded-3xl shadow-xl shadow-orange-500/20 overflow-hidden group transition-all duration-500 bg-gradient-to-br ${coverMode === 'badge' && activeBadge ? 'from-stone-900 to-black' : !customBanner ? 'from-orange-400 to-amber-500' : ''}`}>
+            <div className="relative w-full h-56">
+                {/* Main Cover Container - Full Width (No margin/padding) */}
+                <div className={`h-full w-full relative overflow-hidden group transition-all duration-500 bg-gradient-to-br ${coverMode === 'badge' && activeBadge ? 'from-stone-900 to-black' : !customBanner ? 'from-orange-400 to-amber-500' : ''}`}>
                     
                     {/* Mode: Image Upload */}
                     {coverMode === 'image' && customBanner && (
@@ -97,10 +116,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, ba
                     )}
 
                     {/* Edit Button & Menu */}
-                    <div className="absolute top-4 right-4 z-30">
+                    <div className="absolute top-6 right-6 z-30">
                         <button 
                             onClick={() => setShowEditMenu(!showEditMenu)} 
-                            className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all opacity-0 group-hover:opacity-100 shadow-lg border border-white/10"
+                            className="bg-black/30 hover:bg-black/50 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg border border-white/10"
                         >
                             <Edit className="w-3 h-3" /> Ganti Cover
                         </button>
@@ -127,7 +146,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, ba
 
                 {/* Avatar Section */}
                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 z-20">
-                    <div className="w-24 h-24 rounded-full bg-white dark:bg-stone-900 border-4 border-stone-50 dark:border-stone-950 p-1 shadow-lg relative group/avatar">
+                    <div className="w-24 h-24 rounded-full bg-white dark:bg-stone-900 border-4 border-white dark:border-stone-950 p-1 shadow-2xl relative group/avatar">
                         <div className="w-full h-full rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-400 overflow-hidden relative">
                             <img src={userData.avatar} alt="Avatar" className="w-full h-full object-cover" />
                             <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
@@ -136,42 +155,47 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ userData, role, ba
                             </label>
                         </div>
                     </div>
-                    <div className="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1.5 border-2 border-white dark:border-stone-950 shadow-md">
-                        {role === 'provider' && <Store className="w-3 h-3 text-white" />}
-                        {role === 'volunteer' && <Truck className="w-3 h-3 text-white" />}
-                        {role === 'receiver' && <User className="w-3 h-3 text-white" />}
+                    {/* Badge Icon Logic Fixed */}
+                    <div className="absolute bottom-0 right-0 bg-orange-500 rounded-full w-8 h-8 flex items-center justify-center border-2 border-white dark:border-stone-950 shadow-md text-white">
+                        {getRankIcon()}
                     </div>
                 </div>
             </div>
 
-            <div className="mt-14 text-center px-4">
+            <div className="mt-16 text-center px-4">
                 <h1 className="text-xl font-bold text-stone-900 dark:text-white">{userData.name}</h1>
                 <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">
                     {role === 'provider' ? 'Donatur Terverifikasi' : role === 'volunteer' ? 'Relawan' : 'Penerima Manfaat'}
                 </p>
 
-                <div className="flex justify-center gap-4 mt-4 text-sm text-stone-500 dark:text-stone-400">
+                <div className="flex justify-center gap-4 mt-2 text-sm text-stone-500 dark:text-stone-400">
                     <div className="flex items-center gap-1"><Mail className="w-3 h-3" /> {userData.email}</div>
                 </div>
                 <div className="flex justify-center gap-4 mt-1 text-sm text-stone-500 dark:text-stone-400">
                     <div className="flex items-center gap-1"><Phone className="w-3 h-3" /> {userData.phone}</div>
                 </div>
 
-                {/* Score Cards */}
-                {role === 'provider' && (
-                    <div className="grid grid-cols-3 gap-3 px-4 mt-6 max-w-md mx-auto">
-                        <ScoreCard icon={Package} value={donaturScores.totalDonations} label="Donasi" color="orange" />
-                        <ScoreCard icon={Star} value={donaturScores.rating} label="Rating" color="yellow" />
-                        <ScoreCard icon={Award} value={donaturScores.points} label="Poin" color="blue" />
-                    </div>
-                )}
-                {role === 'volunteer' && (
-                    <div className="grid grid-cols-3 gap-3 px-4 mt-6 max-w-md mx-auto">
-                        <ScoreCard icon={CheckCircle} value={volunteerScores.missions} label="Misi" color="blue" />
-                        <ScoreCard icon={Clock} value={volunteerScores.hours} label="Jam" color="purple" />
-                        <ScoreCard icon={Award} value={volunteerScores.points} label="Poin" color="orange" />
-                    </div>
-                )}
+                {/* Score Cards Dynamic */}
+                <div className="grid grid-cols-3 gap-3 px-4 mt-6 max-w-md mx-auto">
+                    <ScoreCard 
+                        icon={role === 'volunteer' ? CheckCircle : role === 'provider' ? Package : Package} 
+                        value={currentStats.value1} 
+                        label={currentStats.label1} 
+                        color={role === 'volunteer' ? 'blue' : 'orange'} 
+                    />
+                    <ScoreCard 
+                        icon={role === 'volunteer' ? Clock : role === 'provider' ? Star : Heart} 
+                        value={currentStats.value2} 
+                        label={currentStats.label2} 
+                        color={role === 'volunteer' ? 'purple' : role === 'provider' ? 'yellow' : 'red'} 
+                    />
+                    <ScoreCard 
+                        icon={Award} 
+                        value={currentStats.value3} 
+                        label={currentStats.label3} 
+                        color="blue" 
+                    />
+                </div>
             </div>
 
             {/* Badge Selection Modal */}
@@ -232,7 +256,8 @@ const ScoreCard = ({ icon: Icon, value, label, color }: any) => {
         orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
         yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
         blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-        purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+        purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+        red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
     };
     return (
         <div className="bg-white dark:bg-stone-900 p-3 rounded-xl border border-stone-200 dark:border-stone-800 shadow-sm flex flex-col items-center">
